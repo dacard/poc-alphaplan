@@ -307,17 +307,29 @@ def serie_mensal(ctx: Contexto, cliente_id: int | None = None, contrato_id: int 
     contratos = ctx.contratos_de(cliente_id=cliente_id, contrato_id=contrato_id)
     janela = conc.meses_entre("2000-01", ctx.ultimo_mes)[-meses:]
     esperado = defaultdict(float)
+    por_contrato = []
     for c in contratos:
-        for m in ctx.conciliacao(c)["meses"]:
-            esperado[m["competencia"]] += m["esperado"]["comissao"]
+        meses_c = {m["competencia"]: m for m in ctx.conciliacao(c)["meses"]}
+        for comp, m in meses_c.items():
+            esperado[comp] += m["esperado"]["comissao"]
+        por_contrato.append({**{k: v for k, v in ctx.descrever(c).items() if k in ("contrato_id", "produto", "identificador_relatorio")},
+                             "meses": [{"competencia": comp, "recebido": meses_c[comp]["processado"]["comissao"],
+                                        "esperado": meses_c[comp]["esperado"]["comissao"], "impacto": meses_c[comp]["impacto"],
+                                        "situacao": meses_c[comp]["status"]}
+                                       for comp in janela if comp in meses_c]})
     serie = []
     for m in janela:  # vidas = pessoas distintas no mês
         bruta = sum(l.valor_comissao for c in contratos for l in ctx.linhas[c.id] if l.competencia == m and l.valor_comissao > 0)
         estornos = sum(l.valor_estorno for c in contratos for l in ctx.linhas[c.id] if l.competencia == m)
         vidas = len(set().union(*(ctx.pessoas_mes(c, m) for c in contratos))) if contratos else 0
         serie.append({"competencia": m, "receita_liquida": round(bruta - estornos, 2), "estornos": round(estornos, 2),
-                      "esperado": round(esperado[m], 2), "vidas": vidas})
-    return {"contratos": len(contratos), "serie": serie}
+                      "esperado": round(esperado[m], 2), "impacto": round(bruta - estornos - esperado[m], 2),
+                      "vidas": vidas})
+    saida = {"contratos": len(contratos), "serie": serie,
+             "observacao": "impacto = receita_liquida − esperado (o mesmo valor que a tela Processado mostra por contrato)"}
+    if len(contratos) > 1:
+        saida["por_contrato"] = por_contrato  # para conferir com a tela, que mostra cada contrato separado
+    return saida
 
 
 def resumo_geral(ctx: Contexto, cliente_ids: list[int] | None = None) -> dict:
@@ -383,8 +395,10 @@ DEFINICOES = [
      "input_schema": _obj({"fonte": {"type": "string"}, "cliente_id": INT_OPC,
                            "limite": {"type": "integer", "description": "Padrão 5"}})},
     {"name": "serie_mensal",
-     "description": "Receita líquida, estornos, esperado pelo cadastro e vidas mês a mês (últimos N meses completos), "
-                    "de toda a carteira, de um cliente ou de um contrato. Use para tendências e comparações entre meses.",
+     "description": "Receita líquida, estornos, esperado pelo cadastro, impacto (recebido − esperado) e vidas mês a "
+                    "mês (últimos N meses completos), de toda a carteira, de um cliente ou de um contrato. Para um "
+                    "cliente com vários contratos, traz também os valores de cada contrato. Use para tendências, "
+                    "variações entre meses e o impacto de um mês específico.",
      "input_schema": _obj({"cliente_id": INT_OPC, "contrato_id": INT_OPC,
                            "meses": {"type": "integer", "description": "Padrão 12"}})},
     {"name": "resumo_geral",

@@ -85,7 +85,7 @@ contratos, colaboradores, comissões, divergências e relatórios. Usa a API da 
 (`backend/app/assistente/ferramentas.py`); o prompt e o loop ficam em `backend/app/assistente/agente.py`.
 Fora desse contexto, ele recusa educadamente.
 
-**Avaliação** com 20 perguntas de gestor, cuja resposta certa é calculada direto do banco:
+**Avaliação** com 20 perguntas de gestor (mais casos de regressão), cuja resposta certa é calculada direto do banco:
 
 ```bash
 cd backend && ../.venv/bin/python -m avaliacao.avaliar_assistente   # relatório em dados/avaliacao_assistente.md
@@ -103,6 +103,8 @@ Cada rodada custa algumas chamadas à API.
   Up Health: `<nº contrato> / Médico|Dental`; Quali: código da empresa;
   Mediatorie: `<Contrato Cliente> / Médico|Odonto`).
 - **Casamento de pessoas**: CPF (se a chave do contrato for CPF) → nome exato → nome aproximado (≥ 90%).
+- **Meses analisados**: do início do contrato até o último mês completo coberto pelos relatórios da fonte.
+  Um contrato que para de gerar comissão continua aparecendo, com os colaboradores "sem comissão".
 - **Comissão esperada**: mensalidade × % da regra para a parcela informada no relatório.
 - **Mensalidade esperada**: tabela por faixa etária do produto (se houver e o colaborador tiver nascimento);
   senão, o valor cadastrado no colaborador, considerando os reajustes registrados (mês a partir do qual valem).

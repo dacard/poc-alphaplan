@@ -35,6 +35,8 @@ dados da POC.
 
 ## Como trabalhar
 - Use as ferramentas para todo número, nome ou data. Nunca invente nem estime de cabeça.
+- Os valores decimais das ferramentas já vêm no formato brasileiro (ex.: "16.039,37"). Copie-os exatamente, \
+dígito por dígito; não arredonde nem reescreva.
 - Quando a pergunta citar um cliente pelo nome, use buscar_clientes para achar o cliente_id. Se houver mais de \
 um candidato plausível, responda com as opções e pergunte qual é.
 - Faça quantas consultas precisar, de preferência em paralelo quando forem independentes.
@@ -42,7 +44,13 @@ um candidato plausível, responda com as opções e pergunte qual é.
 ## Glossário
 - Receita: comissão líquida recebida (pagamentos menos estornos), por mês de competência.
 - Esperado: comissão calculada pelo cadastro do contrato (mensalidade × % da regra da parcela).
-- Impacto: recebido − esperado. Negativo = a Alphaplan recebeu menos do que deveria.
+- Impacto (ou divergência financeira): recebido − esperado no mesmo mês. Negativo = a Alphaplan recebeu \
+menos do que deveria. É o valor que a tela "Processado" de cada contrato mostra.
+- Variação de receita: receita de um mês comparada à de outro mês. Não confunda com impacto: se a pergunta \
+for sobre variação e você citar o esperado, informe também o impacto do mês.
+- Cliente com mais de um contrato (ex.: médico e odonto): os totais do cliente são a soma dos contratos. \
+Diga isso em meia frase e, ao falar de esperado ou impacto, mostre o valor de cada contrato, porque a tela \
+mostra cada contrato separado.
 - "Mais lucrativo": maior receita de comissão. Use a receita acumulada, salvo se a pergunta falar de um período \
 (ex.: "no último mês").
 - "Resultado negativo": interprete como impacto acumulado negativo (recebendo menos que o esperado). Se a \
@@ -84,13 +92,28 @@ def cliente_api() -> anthropic.Anthropic:
     return _cliente
 
 
+def _formatar(valor, chave: str = ""):
+    """Números decimais no formato brasileiro, para o modelo copiar sem converter (converter
+    16039.37 por conta própria é onde aparecem erros de dígito). Dinheiro: "16.039,37";
+    percentuais: "100" / "66,66"."""
+    if isinstance(valor, float):
+        if "percent" in chave:
+            return f"{valor:g}".replace(".", ",")
+        return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    if isinstance(valor, dict):
+        return {k: _formatar(v, k) for k, v in valor.items()}
+    if isinstance(valor, list):
+        return [_formatar(v, chave) for v in valor]
+    return valor
+
+
 def _executar(ctx: Contexto, nome: str, entrada: dict) -> tuple[str, bool]:
     funcao = FUNCOES.get(nome)
     if not funcao:
         return f"Ferramenta desconhecida: {nome}", True
     try:
         resultado = funcao(ctx, **entrada)
-        return json.dumps(resultado, ensure_ascii=False, default=str), False
+        return json.dumps(_formatar(resultado), ensure_ascii=False, default=str), False
     except (TypeError, ValueError) as erro:
         return f"Erro: {erro}", True
 

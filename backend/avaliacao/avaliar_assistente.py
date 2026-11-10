@@ -1,4 +1,4 @@
-"""Avaliação do assistente de IA com 20 perguntas de gestor.
+"""Avaliação do assistente de IA com 20 perguntas de gestor (mais casos de regressão).
 
 Para cada pergunta, a resposta certa é calculada direto do banco (sem passar pelas ferramentas do
 assistente) e o script confere:
@@ -43,7 +43,11 @@ def nome_curto(nome: str, palavras: int = 2) -> str:
 
 def contem(texto: str, alvo: str) -> bool:
     t = sem_acento(texto).replace(" ", " ")
-    return sem_acento(alvo) in t
+    a = sem_acento(alvo)
+    if a in t:
+        return True
+    # Nomes (sem dígitos): basta cada palavra aparecer, aceitando "Caixa de Assistência" para "Caixa Assistencia"
+    return not re.search(r"\d", a) and all(p in t for p in a.split())
 
 
 # ---------- verdade calculada do banco ----------
@@ -189,8 +193,16 @@ def montar_casos(v: Verdade) -> list[dict]:
     caso("Qual empresa perdeu mais colaboradores no último mês?", ["ranking", "movimentacao_colaboradores"],
          [nome_curto(v.clientes[pior].nome)])
 
+    brd = v.cliente("brd particip")
+    jun = [next(m for m in v.conc[c.id]["meses"] if m["competencia"] == "2026-06") for c in v.de(brd.id)]
+    caso("Qual a variação de receita em junho de 2026 da Brd Participacoes Ltda? E o impacto?",
+         ["buscar_clientes", "serie_mensal", "listar_contratos", "conciliacao_contrato"],
+         [brl(v.receita(v.de(brd.id), "2026-06") - v.receita(v.de(brd.id), "2026-05")),
+          brl(sum(m["impacto"] for m in jun))] + [brl(m["impacto"]) for m in jun])
+
     caso("Qual a previsão do tempo para amanhã em Vitória?", [], [],
-         algum=["só posso", "so posso", "apenas", "somente", "não consigo", "nao consigo", "fora do"],
+         algum=["só posso", "so posso", "só consigo", "so consigo", "apenas", "somente", "não consigo",
+                "nao consigo", "fora do", "não tenho", "nao tenho"],
          proibido=["graus", "ensolarado", "chuva", "temperatura"])
     return casos
 
@@ -218,7 +230,7 @@ def avaliar(caso: dict) -> dict:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--so", help="números das perguntas (1-20), separados por vírgula")
+    ap.add_argument("--so", help="números das perguntas, separados por vírgula")
     args = ap.parse_args()
     with Session(engine) as s:
         casos = montar_casos(Verdade(s))

@@ -10,7 +10,7 @@ from collections import defaultdict
 from datetime import date
 
 from rapidfuzz import fuzz, process
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from .models import Administradora, Colaborador, Contrato, LinhaRelatorio, Operadora, Produto
 from .parsers.comum import normalizar_nome
@@ -93,6 +93,19 @@ def fonte_do_contrato(session: Session, contrato: Contrato) -> str | None:
     produto = session.get(Produto, contrato.produto_id)
     operadora = session.get(Operadora, produto.operadora_id)
     return operadora.codigo_fonte
+
+
+def ultimo_mes_completo() -> str:
+    hoje = date.today()
+    return f"{hoje.year}-{hoje.month - 1:02d}" if hoje.month > 1 else f"{hoje.year - 1}-12"
+
+
+def cobertura_da_fonte(session: Session, fonte: str | None) -> str | None:
+    """Último mês completo com relatório da fonte: até ele, ausência de comissão é divergência."""
+    if not fonte:
+        return None
+    return session.exec(select(func.max(LinhaRelatorio.competencia)).where(
+        LinhaRelatorio.fonte == fonte, LinhaRelatorio.competencia <= ultimo_mes_completo())).first()
 
 
 def linhas_do_contrato(session: Session, contrato: Contrato) -> list[LinhaRelatorio]:
@@ -274,14 +287,17 @@ def conciliar_contrato(session: Session, contrato: Contrato) -> dict:
     for l in linhas:
         por_mes[l.competencia].append(l)
 
+    # Do início do contrato (ou 1º relatório) até o último mês coberto pelos relatórios da fonte.
+    # Assim, um contrato que deixa de gerar comissão continua aparecendo, com os colaboradores
+    # "sem comissão", em vez de sumir da conciliação. Meses futuros pagos antecipadamente entram também.
+    hoje = mes(date.today())
+    inicio = max(min(por_mes), mes(contrato.data_inicio)) if por_mes else mes(contrato.data_inicio)
+    candidatos = [x for x in (min(max(por_mes), hoje) if por_mes else None,
+                              cobertura_da_fonte(session, fonte_do_contrato(session, contrato))) if x]
     meses = []
-    if por_mes:
-        hoje = mes(date.today())
-        # Do início do contrato (ou 1º relatório) até o último relatório (limitado a hoje),
-        # mais meses futuros pagos antecipadamente.
-        inicio = max(min(por_mes), mes(contrato.data_inicio))
-        fim = max(inicio, min(max(por_mes), hoje))
-        meses = sorted(set(meses_entre(inicio, fim)) | {m for m in por_mes if m >= inicio})
+    if candidatos:
+        fim = max(candidatos)
+        meses = sorted(set(meses_entre(inicio, fim) if fim >= inicio else []) | {m for m in por_mes if m >= inicio})
 
     resultado = [conciliar_mes(contrato, produto, colaboradores, por_mes.get(m, []), m)
                  for m in reversed(meses)]
