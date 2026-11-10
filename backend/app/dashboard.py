@@ -17,6 +17,9 @@ from .models import Cliente, Colaborador, Contrato, LinhaRelatorio, Produto
 from .parsers.comum import normalizar_nome
 
 MESES_BASE_PROJECAO = 6
+JANELA_ALERTA = 3          # meses recentes x meses anteriores
+PERCENTUAL_AGENCIAMENTO = 50  # parcelas com % >= isto são agenciamento (não recorrente)
+TOP_ALERTAS = 10
 HORIZONTE_PROJECAO = 6
 AMORTECIMENTO = 0.8  # a cada mês a tendência da receita por vida pesa 80% do mês anterior
 
@@ -104,7 +107,75 @@ def dados_dashboard(session: Session, cliente_ids: list[int] | None) -> dict:
             "parcial": comp == hoje,
         })
 
-    return {"indicadores": indicadores, "serie": serie, "projecao": _projetar(serie)}
+    por_contrato = defaultdict(list)
+    for l in linhas:
+        por_contrato[refs[(l.fonte, l.contrato_ref)]].append(l)
+    return {"indicadores": indicadores, "serie": serie, "projecao": _projetar(serie),
+            "alertas": _alertas(session, contratos, por_contrato, hoje)}
+
+
+def _alertas(session: Session, contratos: list[Contrato], por_contrato: dict, hoje: str) -> dict:
+    """Contratos com maior queda de receita recorrente: média dos últimos meses completos
+    contra a média dos meses anteriores. Agenciamento fica de fora, porque o fim dele
+    derruba a receita de todo contrato novo e não indica problema."""
+    a, m = map(int, hoje.split("-"))
+    ultimo = f"{a:04d}-{m - 1:02d}" if m > 1 else f"{a - 1:04d}-12"  # último mês completo
+    inicio = conc.meses_entre("2000-01", ultimo)[-2 * JANELA_ALERTA]
+    janela = conc.meses_entre(inicio, ultimo)
+    anteriores, recentes = janela[:JANELA_ALERTA], janela[JANELA_ALERTA:]
+
+    clientes = {c.id: c.nome for c in session.exec(select(Cliente))}
+    produtos = {p.id: p.nome for p in session.exec(select(Produto))}
+    itens = []
+    for c in contratos:
+        receita = defaultdict(float)
+        pessoas = defaultdict(set)
+        for l in por_contrato.get(c.id, []):
+            if l.competencia not in janela:
+                continue
+            if l.percentual is not None and l.percentual >= PERCENTUAL_AGENCIAMENTO and l.valor_comissao > 0:
+                continue
+            receita[l.competencia] += l.valor_comissao
+            if l.valor_comissao > 0:
+                pessoas[l.competencia].add(normalizar_nome(l.nome))
+        antes = sum(receita[x] for x in anteriores) / JANELA_ALERTA
+        depois = sum(receita[x] for x in recentes) / JANELA_ALERTA
+        if antes <= 0 or depois >= antes:
+            continue
+        vidas_antes = round(sum(len(pessoas[x]) for x in anteriores) / JANELA_ALERTA, 1)
+        vidas_depois = round(sum(len(pessoas[x]) for x in recentes) / JANELA_ALERTA, 1)
+        num = lambda v: f"{v:g}".replace(".", ",")
+        if depois <= 0:
+            causa, tipo = f"nenhuma comissão em {recentes[0][5:]}–{recentes[-1][5:]}/{recentes[-1][:4]}", "sem_pagamento"
+        else:
+            # A causa é a que mais explica a queda: menos vidas ou menos receita por vida
+            va, vd = antes / vidas_antes, depois / vidas_depois
+            if (vidas_depois - vidas_antes) / vidas_antes <= (vd - va) / va:
+                causa, tipo = f"{num(vidas_antes)} → {num(vidas_depois)} vidas/mês", "vidas"
+            else:
+                causa, tipo = f"R$ {va:.2f} → R$ {vd:.2f} por vida".replace(".", ","), "valor"
+        itens.append({
+            "contrato_id": c.id,
+            "cliente": clientes[c.cliente_id],
+            "produto": produtos[c.produto_id],
+            "identificador": c.identificador_relatorio,
+            "receita_antes": round(antes, 2),
+            "receita_depois": round(depois, 2),
+            "variacao": round(depois - antes, 2),
+            "variacao_pct": round((depois - antes) / antes * 100, 1),
+            "vidas_antes": vidas_antes,
+            "vidas_depois": vidas_depois,
+            "causa": causa,
+            "tipo": tipo,
+        })
+    itens.sort(key=lambda x: x["variacao"])
+    return {
+        "periodo_anterior": [anteriores[0], anteriores[-1]],
+        "periodo_recente": [recentes[0], recentes[-1]],
+        "total": len(itens),
+        "perda_mensal": round(sum(x["variacao"] for x in itens), 2),
+        "itens": itens[:TOP_ALERTAS],
+    }
 
 
 def _projetar(serie: list[dict]) -> dict:

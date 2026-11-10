@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Cliente } from "../api";
 import FiltroClientes from "../components/FiltroClientes";
 import GraficoLinha, { Serie } from "../components/GraficoLinha";
-import { Cabecalho, Carregando, useApi } from "../components/ui";
+import { Cabecalho, Carregando, Impacto, useApi } from "../components/ui";
 import { competencia, moeda } from "../formato";
 
 interface PontoSerie {
@@ -11,7 +11,13 @@ interface PontoSerie {
   esperado: number | null; vidas: number; parcial: boolean;
 }
 interface PontoProjecao { competencia: string; vidas: number; receita: number; receita_min: number; receita_max: number }
+interface Alerta {
+  contrato_id: number; cliente: string; produto: string; identificador: string;
+  receita_antes: number; receita_depois: number; variacao: number; variacao_pct: number;
+  vidas_antes: number; vidas_depois: number; causa: string; tipo: "sem_pagamento" | "vidas" | "valor";
+}
 interface DadosDashboard {
+  alertas: { periodo_anterior: [string, string]; periodo_recente: [string, string]; total: number; perda_mensal: number; itens: Alerta[] };
   indicadores: Record<"clientes" | "operadoras" | "administradoras" | "contratos" | "colaboradores" |
     "relatorios" | "pagamentos" | "receita" | "estornos", number>;
   serie: PontoSerie[];
@@ -50,6 +56,7 @@ export default function Dashboard() {
       {!dados ? <Carregando erro={erro} /> : (
         <div className={carregando ? "recarregando" : ""}>
           <Indicadores d={dados} />
+          <PainelAlertas a={dados.alertas} />
           {dados.serie.length ? (
             <>
               <CartaoReceita d={dados} tabela={tabela} setTabela={setTabela} />
@@ -59,6 +66,60 @@ export default function Dashboard() {
         </div>
       )}
     </>
+  );
+}
+
+const ROTULO_CAUSA = { sem_pagamento: "Sem pagamentos", vidas: "Saída de colaboradores", valor: "Valor por vida" };
+
+function PainelAlertas({ a }: { a: DadosDashboard["alertas"] }) {
+  const navegar = useNavigate();
+  const periodo = (p: [string, string]) => `${competencia(p[0])}–${competencia(p[1])}`;
+  return (
+    <div className="cartao grafico-cartao sem-padding alertas">
+      <div className="grafico-topo alertas-topo">
+        <div>
+          <h2>Contratos que precisam de atenção</h2>
+          <p className="mudo pequeno">
+            Maiores quedas de receita recorrente: média de {periodo(a.periodo_recente)} contra {periodo(a.periodo_anterior)}.
+            Parcelas de agenciamento ficam de fora (o fim delas é esperado).
+          </p>
+        </div>
+        {a.total > 0 && (
+          <div className="alertas-resumo">
+            <b>{a.total}</b> <span className="mudo">contratos com queda</span>
+            <Impacto valor={a.perda_mensal} /><span className="mudo">/mês</span>
+          </div>
+        )}
+      </div>
+      {!a.itens.length ? (
+        <div className="vazio">Nenhum contrato com queda de receita no período.</div>
+      ) : (
+        <table className="tabela clicavel">
+          <thead>
+            <tr>
+              <th className="num">#</th><th>Cliente / contrato</th>
+              <th className="num">Receita/mês antes</th><th className="num">Agora</th>
+              <th className="num">Variação</th><th>Causa provável</th>
+            </tr>
+          </thead>
+          <tbody>
+            {a.itens.map((x, i) => (
+              <tr key={x.contrato_id} onClick={() => navegar(`/contratos/${x.contrato_id}?aba=processado`)}>
+                <td className="num mudo">{i + 1}</td>
+                <td><div className="forte">{x.cliente}</div>
+                  <div className="mudo pequeno">{x.produto} · <span className="mono">{x.identificador}</span></div></td>
+                <td className="num">{moeda(x.receita_antes)}</td>
+                <td className="num">{moeda(x.receita_depois)}</td>
+                <td className="num"><Impacto valor={x.variacao} />
+                  <div className="mudo pequeno">{x.variacao_pct.toLocaleString("pt-BR")}%</div></td>
+                <td><span className={`tag tag-causa-${x.tipo}`}>{ROTULO_CAUSA[x.tipo]}</span>
+                  <div className="mudo pequeno">{x.causa}</div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 

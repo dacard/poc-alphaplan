@@ -199,6 +199,13 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(31,95,209,.2
 .resumo-projecao b { font-size: 16px; font-weight: 600; }
 .tabela-rolagem { max-height: 360px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 8px; }
 .linha-projecao td { background: #f7f9fd; }
+.alertas-topo { padding: 16px 16px 4px; }
+.alertas-resumo { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.alertas-resumo b { font-size: 18px; }
+.alertas .tabela { border-top: 1px solid var(--borda); }
+.tag-causa-sem_pagamento { background: var(--negativo-fundo); color: var(--negativo); }
+.tag-causa-vidas { background: var(--alerta-fundo); color: var(--alerta); }
+.tag-causa-valor { background: #eef1f5; color: #3b4352; }
 .recarregando { opacity: .55; transition: opacity .15s; }
 .filtro-clientes { position: relative; }
 .seletor { display: inline-flex; gap: 6px; align-items: center; }

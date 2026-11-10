@@ -57,6 +57,11 @@ comissão e projeção dos próximos meses, tudo filtrável por cliente.
 calculadas nos últimos 6 meses completos. O mês em andamento entra como projeção. A faixa sombreada
 é ± o desvio dos resíduos da receita por vida.
 
+**Alertas** (top 10 contratos que precisam de atenção): maiores quedas de receita recorrente,
+comparando a média dos últimos 3 meses completos com a dos 3 anteriores. Parcelas de agenciamento
+(% ≥ 50) ficam de fora, porque o fim delas é esperado. A causa provável é a que mais explica a
+queda: sem pagamentos, saída de colaboradores ou queda no valor por vida.
+
 ## Regras da conciliação
 
 - **Competência**: Samp = mês de vencimento da mensalidade; Easyplan = mês da previsão de pagamento;
