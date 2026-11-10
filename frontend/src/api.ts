@@ -61,6 +61,13 @@ export interface Colaborador {
   data_inclusao: string;
   data_exclusao?: string | null;
   valor_mensalidade: number;
+  historico_mensalidade?: { a_partir: string; valor: number }[];
+}
+
+/** Mensalidade cadastrada válida no mês (AAAA-MM), considerando reajustes. */
+export function valorVigente(c: Colaborador, mes: string): number {
+  const vigentes = (c.historico_mensalidade || []).filter((h) => h.a_partir <= mes);
+  return vigentes.length ? vigentes.sort((a, b) => a.a_partir.localeCompare(b.a_partir)).at(-1)!.valor : c.valor_mensalidade;
 }
 
 export interface Relatorio {

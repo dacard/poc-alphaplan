@@ -48,11 +48,12 @@ cd backend && ../.venv/bin/python -m app.seed && cd ..
 
 - **Competência**: Samp = mês de vencimento da mensalidade; Easyplan = mês da previsão de pagamento.
 - **Ligação relatório → contrato**: campo *Identificador no relatório* do contrato
-  (Samp: nº do contrato; Easyplan: `Operadora / Modalidade N`, pois o relatório não traz a empresa).
+  (Samp: nº do contrato; Easyplan: `PRODUTOR / Modalidade N` — PRODUTOR é a empresa, NOME CONTRATO o colaborador).
 - **Casamento de pessoas**: CPF (se a chave do contrato for CPF) → nome exato → nome aproximado (≥ 90%).
 - **Comissão esperada**: mensalidade × % da regra para a parcela informada no relatório.
 - **Mensalidade esperada**: tabela por faixa etária do produto (se houver e o colaborador tiver nascimento);
-  senão, o valor cadastrado no colaborador.
+  senão, o valor cadastrado no colaborador, considerando os reajustes registrados (mês a partir do qual valem).
 - **Divergências**: sem comissão (esperado e ausente), não cadastrado, mensalidade diferente,
-  percentual diferente, mesma parcela paga duas vezes, estorno.
+  percentual diferente, possível duplicidade (mesma parcela paga duas vezes — pode ser titular e dependente
+  com o mesmo nome), estorno.
 - **Impacto** = comissão recebida − comissão esperada (positivo: recebeu a mais; negativo: a menos).

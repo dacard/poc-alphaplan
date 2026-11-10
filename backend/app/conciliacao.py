@@ -24,7 +24,7 @@ TIPOS = {
     "nao_cadastrado": "No relatório, sem cadastro",
     "mensalidade": "Mensalidade diferente",
     "percentual": "Percentual de comissão diferente",
-    "duplicidade": "Mesma parcela paga mais de uma vez",
+    "duplicidade": "Mesma parcela paga mais de uma vez (pode ser titular e dependente com o mesmo nome)",
     "estorno": "Estorno de comissão",
 }
 
@@ -68,7 +68,13 @@ def mensalidade_esperada(colab: Colaborador, produto: Produto, competencia: str)
         for i, (de, ate) in enumerate(FAIXAS_ANS):
             if de <= idade <= ate and i < len(produto.tabela_faixas):
                 return float(produto.tabela_faixas[i])
-    return colab.valor_mensalidade
+    return valor_vigente(colab, competencia)
+
+
+def valor_vigente(colab: Colaborador, competencia: str) -> float:
+    """Mensalidade cadastrada válida no mês, considerando os reajustes registrados."""
+    vigentes = [h for h in (colab.historico_mensalidade or []) if h["a_partir"] <= competencia]
+    return float(max(vigentes, key=lambda h: h["a_partir"])["valor"]) if vigentes else colab.valor_mensalidade
 
 
 def ativo_no_mes(colab: Colaborador, competencia: str) -> bool:

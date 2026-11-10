@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { Colaborador, enviar } from "../../api";
+import { Colaborador, enviar, valorVigente } from "../../api";
 import { FormColaborador } from "../../components/Formularios";
 import { Carregando, useApi } from "../../components/ui";
-import { data, moeda } from "../../formato";
+import { competencia, data, moeda } from "../../formato";
 
 const hojeMes = new Date().toISOString().slice(0, 7);
 const ativo = (c: Colaborador) => c.data_inclusao.slice(0, 7) <= hojeMes &&
@@ -26,7 +26,7 @@ export default function AbaColaboradores({ contratoId, aoMudar }: { contratoId: 
     aoMudar();
   };
 
-  const total = dados.reduce((s, c) => s + (ativo(c) ? c.valor_mensalidade : 0), 0);
+  const total = dados.reduce((s, c) => s + (ativo(c) ? valorVigente(c, hojeMes) : 0), 0);
 
   return (
     <>
@@ -57,7 +57,9 @@ export default function AbaColaboradores({ contratoId, aoMudar }: { contratoId: 
                 <td>{data(c.data_nascimento)}</td>
                 <td>{data(c.data_inclusao)}</td>
                 <td>{data(c.data_exclusao)}</td>
-                <td className="num">{moeda(c.valor_mensalidade)}</td>
+                <td className="num">{moeda(valorVigente(c, hojeMes))}
+                  {!!c.historico_mensalidade?.length && <div className="mudo pequeno">
+                    reajuste em {competencia(c.historico_mensalidade.at(-1)!.a_partir)}</div>}</td>
                 <td className="acoes-linha">
                   <button className="link" onClick={() => setEditando(c)}>Editar</button>
                   <button className="link perigo" onClick={() => remover(c)}>Remover</button>

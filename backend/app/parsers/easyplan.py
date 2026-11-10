@@ -1,7 +1,8 @@
 """Easyplan: Excel 'Relatório_-_*.xlsx' (aba 'Relatório').
 
-Uma linha por beneficiário. O relatório não traz a empresa cliente; o contrato é
-identificado por "<OPERADORA> / Modalidade <MODALIDADE>".
+Uma linha por colaborador. PRODUTOR = empresa cliente; NOME CONTRATO = colaborador.
+Cada MODALIDADE tem percentuais próprios (produtos diferentes), então o contrato é
+identificado por "<PRODUTOR> / Modalidade <MODALIDADE>".
 Competência = mês da PREVISÃO PAGAMENTO. Comissão líquida = provisionado - estorno.
 """
 from datetime import datetime
@@ -35,8 +36,8 @@ def metadados(pasta: Path) -> dict:
     }
 
 
-def contrato_ref(operadora: str, modalidade: str) -> str:
-    return f"{operadora.strip()} / Modalidade {modalidade.strip()}"
+def contrato_ref(produtor: str, modalidade: str) -> str:
+    return f"{produtor.strip()} / Modalidade {modalidade.strip()}"
 
 
 def ler(arquivo: Path) -> list[dict]:
@@ -47,8 +48,8 @@ def ler(arquivo: Path) -> list[dict]:
         provisionado = numero_br(r["VALOR PROVISIONADO"])
         estorno = numero_br(r["VALOR ESTORNO"])
         linhas.append({
-            "contrato_ref": contrato_ref(r["OPERADORA"], r["MODALIDADE"]),
-            "empresa": None,
+            "contrato_ref": contrato_ref(r["PRODUTOR"], r["MODALIDADE"]),
+            "empresa": r["PRODUTOR"].strip(),
             "nome": r["NOME CONTRATO"].strip(),
             "cpf": so_digitos(r["CPF / CNPJ"]),
             "competencia": previsao.strftime("%Y-%m"),

@@ -3,7 +3,7 @@
 ATENÇÃO: apaga dados/poc.db e recria do zero.
 
 Como a POC não tem o cadastro real dos contratos, ele é simulado assim:
-  - um cliente por empresa (Samp) e uma carteira única para a Easyplan (o relatório não traz a empresa);
+  - um cliente por empresa (Samp: EMPRESA/TITULAR; Easyplan: PRODUTOR);
   - um contrato por identificador de contrato no relatório;
   - regra de comissão = percentual mais comum na parcela 1 e nas demais;
   - colaboradores = quem aparece no "mês base" do contrato (1º mês com volume normal),
@@ -102,11 +102,10 @@ def main():
             return clientes[nome]
 
         for (fonte, ref), ls in sorted(por_ref.items()):
+            cli = cliente(_moda([l.empresa for l in ls], ref).title())
             if fonte == "samp":
-                cli = cliente(_moda([l.empresa for l in ls], ref).title())
                 c, n = criar_contrato(s, cli, prod_samp, None, ref, ls, "nome")
             else:
-                cli = cliente("Carteira Adesão Easyplan")
                 c, n = criar_contrato(s, cli, prod_bluzz, easyplan, ref, ls, "cpf")
             print(f"  {cli.nome[:45]:45} {ref:28} início {c.data_inicio}  {n:4} colaboradores")
         s.commit()

@@ -176,12 +176,22 @@ def acao_divergencia(contrato_id: int, dados: dict = Body(...), session: Session
 
     {"acao": "incluir", "nome", "cpf", "valor_mensalidade", "competencia"}  -> novo colaborador
     {"acao": "desligar", "colaborador_id", "competencia"}                    -> data de exclusão
+    {"acao": "reajustar", "itens": [{"colaborador_id", "valor"}], "competencia"} -> nova mensalidade
     """
     _obter(session, Contrato, contrato_id)
     inicio_mes = date.fromisoformat(dados["competencia"] + "-01")
     if dados["acao"] == "incluir":
         item = Colaborador(contrato_id=contrato_id, nome=dados["nome"], cpf=dados.get("cpf"),
                            data_inclusao=inicio_mes, valor_mensalidade=dados["valor_mensalidade"])
+    elif dados["acao"] == "reajustar":
+        for it in dados["itens"]:
+            colab = _obter(session, Colaborador, it["colaborador_id"])
+            historico = [h for h in (colab.historico_mensalidade or []) if h["a_partir"] != dados["competencia"]]
+            historico.append({"a_partir": dados["competencia"], "valor": float(it["valor"])})
+            colab.historico_mensalidade = sorted(historico, key=lambda h: h["a_partir"])
+            session.add(colab)
+        session.commit()
+        return {"ok": True, "reajustados": len(dados["itens"])}
     elif dados["acao"] == "desligar":
         item = _obter(session, Colaborador, dados["colaborador_id"])
         item.data_exclusao = inicio_mes

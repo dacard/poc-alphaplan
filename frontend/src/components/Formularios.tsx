@@ -156,7 +156,7 @@ export function FormContrato({ inicial, aoFechar, aoSalvo }: PropsForm<Contrato>
               {adms.dados?.map((a) => <option key={a.id} value={a.id}>{a.nome}</option>)}
             </select>
           </Campo>
-          <Campo rotulo="Identificador no relatório" dica="Como o contrato aparece no relatório da fonte. Samp: nº do contrato. Easyplan: “Operadora / Modalidade N”.">
+          <Campo rotulo="Identificador no relatório" dica="Como o contrato aparece no relatório da fonte. Samp: nº do contrato. Easyplan: “PRODUTOR / Modalidade N” (PRODUTOR = empresa).">
             <input required value={item.identificador_relatorio} onChange={(e) => setItem({ ...item, identificador_relatorio: e.target.value })} />
           </Campo>
           <Campo rotulo="Início do contrato">
@@ -219,6 +219,8 @@ export function FormColaborador({ inicial, aoFechar, aoSalvo }: PropsForm<Colabo
   const { erro, salvando, salvar } = useSalvar("colaboradores", aoSalvo);
   const set = (campo: keyof Colaborador, valor: string) =>
     setItem({ ...item, [campo]: valor === "" ? null : valor });
+  const setHistorico = (i: number, h: { a_partir: string; valor: number }) =>
+    setItem({ ...item, historico_mensalidade: (item.historico_mensalidade || []).map((x, j) => (j === i ? h : x)) });
   return (
     <Modal titulo={item.id ? "Editar colaborador" : "Novo colaborador"} aoFechar={aoFechar}>
       <form onSubmit={(e) => salvar(e, item)}>
@@ -238,11 +240,23 @@ export function FormColaborador({ inicial, aoFechar, aoSalvo }: PropsForm<Colabo
           <Campo rotulo="Exclusão" dica="A partir deste mês não deve haver cobrança.">
             <input type="date" value={item.data_exclusao || ""} onChange={(e) => set("data_exclusao", e.target.value)} />
           </Campo>
-          <Campo rotulo="Mensalidade (R$)">
+          <Campo rotulo="Mensalidade inicial (R$)">
             <input required type="number" step="0.01" min="0" value={item.valor_mensalidade}
               onChange={(e) => setItem({ ...item, valor_mensalidade: Number(e.target.value) })} />
           </Campo>
         </div>
+
+        <h3>Reajustes de mensalidade</h3>
+        {(item.historico_mensalidade || []).map((h, i) => (
+          <div key={i} className="grade-reajuste">
+            <input type="month" required value={h.a_partir} onChange={(e) => setHistorico(i, { ...h, a_partir: e.target.value })} />
+            <input type="number" step="0.01" min="0" required value={h.valor} onChange={(e) => setHistorico(i, { ...h, valor: Number(e.target.value) })} />
+            <button type="button" className="icone" onClick={() => setItem({ ...item, historico_mensalidade: item.historico_mensalidade!.filter((_, j) => j !== i) })}>×</button>
+          </div>
+        ))}
+        <button type="button" className="link" onClick={() => setItem({
+          ...item, historico_mensalidade: [...(item.historico_mensalidade || []), { a_partir: new Date().toISOString().slice(0, 7), valor: item.valor_mensalidade }],
+        })}>+ adicionar reajuste (mês a partir do qual vale o novo valor)</button>
         <RodapeForm erro={erro} salvando={salvando} aoCancelar={aoFechar} />
       </form>
     </Modal>

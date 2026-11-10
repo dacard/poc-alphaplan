@@ -8,7 +8,7 @@ const ROTULO_CURTO: Record<string, string> = {
   nao_cadastrado: "Não cadastrado",
   mensalidade: "Mensalidade",
   percentual: "Percentual",
-  duplicidade: "Duplicidade",
+  duplicidade: "Possível duplicidade",
   estorno: "Estorno",
 };
 
@@ -74,6 +74,24 @@ function CartaoMes({ mes: m, tipos, contratoId, aberto, alternar, aoMudar }: {
   const divergente = m.status === "divergente";
   const lista = m.divergencias.filter((d) =>
     (!filtro || d.tipos.includes(filtro)) && d.nome.toLowerCase().includes(busca.toLowerCase()));
+  const reajustaveis = lista.filter((d) => d.tipos.includes("mensalidade") && d.colaborador_id && d.processado);
+  const [reajustando, setReajustando] = useState(false);
+
+  const reajustarTodos = async () => {
+    if (!confirm(`Atualizar a mensalidade de ${reajustaveis.length} colaboradores para o valor do relatório, a partir de ${competencia(m.competencia)}?`)) return;
+    setReajustando(true);
+    try {
+      await enviar(`/contratos/${contratoId}/acoes`, "POST", {
+        acao: "reajustar", competencia: m.competencia,
+        itens: reajustaveis.map((d) => ({ colaborador_id: d.colaborador_id, valor: d.processado!.mensalidade })),
+      });
+      aoMudar();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setReajustando(false);
+    }
+  };
 
   return (
     <div className={`cartao mes ${divergente ? "divergente" : "ok"} ${aberto ? "aberto" : ""}`}>
@@ -100,6 +118,11 @@ function CartaoMes({ mes: m, tipos, contratoId, aberto, alternar, aoMudar }: {
                 </button>))}
             </div>
             <input className="busca pequena" placeholder="Buscar nome…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            {reajustaveis.length > 1 && (
+              <button className="secundario" disabled={reajustando} onClick={reajustarTodos}
+                title="Registra um reajuste no cadastro de cada colaborador listado, a partir deste mês">
+                {reajustando ? "Atualizando…" : `Atualizar ${reajustaveis.length} mensalidades a partir deste mês`}
+              </button>)}
           </div>
           <table className="tabela compacta divergencias">
             <thead>
@@ -164,6 +187,12 @@ function LinhaDivergencia({ d, tipos, competencia: comp, contratoId, aoMudar }: 
             { acao: "incluir", nome: d.nome, cpf: p.cpf, valor_mensalidade: p.mensalidade },
             `Incluir ${d.nome} no cadastro a partir de ${competencia(comp)}, com mensalidade ${moeda(p.mensalidade)}?`)}>
             Incluir no cadastro
+          </button>)}
+        {d.tipos.includes("mensalidade") && d.colaborador_id && p && (
+          <button className="link" disabled={executando} onClick={() => acao(
+            { acao: "reajustar", itens: [{ colaborador_id: d.colaborador_id, valor: p.mensalidade }] },
+            `Registrar reajuste de ${d.nome} para ${moeda(p.mensalidade)} a partir de ${competencia(comp)}?`)}>
+            Atualizar valor
           </button>)}
         {d.tipos.includes("ausente") && d.colaborador_id && (
           <button className="link" disabled={executando} onClick={() => acao(

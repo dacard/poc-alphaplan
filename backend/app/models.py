@@ -62,7 +62,9 @@ class Colaborador(SQLModel, table=True):
     data_nascimento: date | None = None
     data_inclusao: date
     data_exclusao: date | None = None
-    valor_mensalidade: float  # usado quando não há tabela por faixa etária ou nascimento
+    valor_mensalidade: float  # valor inicial (sem tabela por faixa etária ou sem nascimento)
+    # Reajustes: [{"a_partir": "2026-04", "valor": 553.64}] — vale o mais recente até o mês
+    historico_mensalidade: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
 
 
 # ---------- Relatórios ----------
