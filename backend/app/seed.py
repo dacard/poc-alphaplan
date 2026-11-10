@@ -3,7 +3,7 @@
 ATENÇÃO: apaga dados/poc.db e recria do zero.
 
 Como a POC não tem o cadastro real dos contratos, ele é simulado assim:
-  - um cliente por empresa (Samp: EMPRESA/TITULAR; Easyplan: PRODUTOR);
+  - um cliente por empresa (Samp: EMPRESA/TITULAR; Easyplan: PRODUTOR; Up Health: Nome/Empresa Titular);
   - um contrato por identificador de contrato no relatório;
   - regra de comissão = percentual mais comum na parcela 1 e nas demais;
   - colaboradores = quem aparece no "mês base" do contrato (1º mês com volume normal),
@@ -76,7 +76,8 @@ def main():
         samp = Operadora(nome="Samp", codigo_fonte="samp")
         bluzz = Operadora(nome="Bluzz Saúde")
         easyplan = Administradora(nome="Easyplan", codigo_fonte="easyplan")
-        s.add_all([samp, bluzz, easyplan, Operadora(nome="Unimed"), Operadora(nome="Amil"),
+        uphealth = Administradora(nome="Up Health", codigo_fonte="uphealth")
+        s.add_all([samp, bluzz, easyplan, uphealth, Operadora(nome="Unimed"), Operadora(nome="Amil"),
                    Administradora(nome="Benevix"), Administradora(nome="Mediatorie")])
         s.commit()
 
@@ -84,7 +85,8 @@ def main():
 
         prod_samp = Produto(nome="Samp Empresarial", operadora_id=samp.id)
         prod_bluzz = Produto(nome="Bluzz Saúde Adesão", operadora_id=bluzz.id)
-        s.add_all([prod_samp, prod_bluzz])
+        prod_samp_tipo = {t: Produto(nome=f"Samp {t}", operadora_id=samp.id) for t in ("Médico", "Dental")}
+        s.add_all([prod_samp, prod_bluzz, *prod_samp_tipo.values()])
         s.flush()
 
         linhas = s.exec(select(LinhaRelatorio)).all()
@@ -105,6 +107,9 @@ def main():
             cli = cliente(_moda([l.empresa for l in ls], ref).title())
             if fonte == "samp":
                 c, n = criar_contrato(s, cli, prod_samp, None, ref, ls, "nome")
+            elif fonte == "uphealth":
+                produto = prod_samp_tipo[ref.split(" / ")[-1]]
+                c, n = criar_contrato(s, cli, produto, uphealth, ref, ls, "nome")
             else:
                 c, n = criar_contrato(s, cli, prod_bluzz, easyplan, ref, ls, "cpf")
             print(f"  {cli.nome[:45]:45} {ref:28} início {c.data_inicio}  {n:4} colaboradores")
