@@ -8,9 +8,12 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlmodel import Session, SQLModel, func, select
 
+import anthropic
+
 from . import coletas
 from . import conciliacao as conc
 from .db import RAIZ, criar_tabelas, get_session
+from .assistente import agente
 from .dashboard import dados_dashboard
 from .importador import importar, remover_relatorio
 from .models import (Administradora, Cliente, Colaborador, Contrato, LinhaRelatorio, Operadora,
@@ -87,6 +90,32 @@ crud("produtos", Produto, [(Contrato, "produto_id")])
 crud("clientes", Cliente, [(Contrato, "cliente_id")])
 crud("contratos", Contrato, [(Colaborador, "contrato_id")])
 crud("colaboradores", Colaborador)
+
+
+# ---------- Assistente de IA ----------
+
+@app.post("/api/assistente", tags=["assistente"])
+def assistente(dados: dict = Body(...)):
+    """{"mensagem": "...", "conversa_id": "..."} -> resposta do assistente."""
+    mensagem = (dados.get("mensagem") or "").strip()
+    if not mensagem:
+        raise HTTPException(422, "Mensagem vazia")
+    try:
+        return agente.perguntar(mensagem[:2000], dados.get("conversa_id"))
+    except anthropic.AuthenticationError:
+        raise HTTPException(503, "Assistente indisponível: verifique ANTHROPIC_API_KEY no .env")
+    except anthropic.RateLimitError:
+        raise HTTPException(429, "Muitas perguntas seguidas. Aguarde alguns segundos e tente de novo.")
+    except anthropic.APIStatusError as erro:
+        raise HTTPException(502, f"Erro na API de IA ({erro.status_code}). Tente novamente.")
+    except anthropic.APIConnectionError:
+        raise HTTPException(503, "Sem conexão com a API de IA.")
+
+
+@app.delete("/api/assistente/{conversa_id}", tags=["assistente"])
+def limpar_conversa(conversa_id: str):
+    agente.nova_conversa(conversa_id)
+    return {"ok": True}
 
 
 # ---------- Dashboard ----------

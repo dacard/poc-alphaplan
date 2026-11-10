@@ -28,7 +28,8 @@ python3 -m venv .venv
 (cd frontend && npm install)
 ```
 
-Credenciais no `.env`: `USUARIO_<FONTE>` e `SENHA_<FONTE>` (ex.: `USUARIO_SAMP`, `SENHA_SAMP`).
+Credenciais no `.env`: `USUARIO_<FONTE>` e `SENHA_<FONTE>` (ex.: `USUARIO_SAMP`, `SENHA_SAMP`) e
+`ANTHROPIC_API_KEY` para o assistente de IA.
 
 ## Uso
 
@@ -75,6 +76,23 @@ calculadas nos últimos 6 meses completos. O mês em andamento entra como proje�
 comparando a média dos últimos 3 meses completos com a dos 3 anteriores. Parcelas de agenciamento
 (% ≥ 50) ficam de fora, porque o fim delas é esperado. A causa provável é a que mais explica a
 queda: sem pagamentos, saída de colaboradores ou queda no valor por vida.
+
+## Assistente de IA
+
+Diálogo flutuante (canto inferior direito, ícone de estrelas) que responde perguntas sobre clientes,
+contratos, colaboradores, comissões, divergências e relatórios. Usa a API da Anthropic
+(`claude-opus-5-5`, chave `ANTHROPIC_API_KEY` no `.env`) com ferramentas de consulta aos dados da POC
+(`backend/app/assistente/ferramentas.py`); o prompt e o loop ficam em `backend/app/assistente/agente.py`.
+Fora desse contexto, ele recusa educadamente.
+
+**Avaliação** com 20 perguntas de gestor, cuja resposta certa é calculada direto do banco:
+
+```bash
+cd backend && ../.venv/bin/python -m avaliacao.avaliar_assistente   # relatório em dados/avaliacao_assistente.md
+```
+
+Mede compreensão (consultou os dados certos) e resposta (os fatos esperados aparecem no texto).
+Cada rodada custa algumas chamadas à API.
 
 ## Regras da conciliação
 

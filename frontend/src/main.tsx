@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-dom";
+import AssistenteIA from "./components/AssistenteIA";
 import Cliente from "./pages/Cliente";
 import Clientes from "./pages/Clientes";
 import Contrato from "./pages/Contrato";
@@ -40,6 +41,7 @@ function App() {
           <Route path="/relatorios" element={<Relatorios />} />
         </Routes>
       </main>
+      <AssistenteIA />
     </div>
   );
 }
