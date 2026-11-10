@@ -1,0 +1,8 @@
+fastapi==0.162.2
+openpyxl==3.1.5
+pandas==3.1.1
+playwright==1.65.0
+python-dotenv==1.2.4
+RapidFuzz==3.14.6
+sqlmodel==0.0.48
+uvicorn==0.54.0

@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Playwright
+/playwright/.auth/
+/test-results/
+
+# Credenciais
+.env
+
+# Relatórios baixados (dados pessoais)
+/dados/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
