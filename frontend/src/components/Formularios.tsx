@@ -5,7 +5,7 @@ import {
 import { Campo, Modal, RodapeForm, useApi } from "./ui";
 
 const FAIXAS = ["0–18", "19–23", "24–28", "29–33", "34–38", "39–43", "44–48", "49–53", "54–58", "59+"];
-const FONTES = ["", "samp", "easyplan", "uphealth"];
+const FONTES = ["", "samp", "easyplan", "uphealth", "quali"];
 
 /** Salva (POST ou PUT) e trata erro/estado. */
 function useSalvar<T extends { id?: number }>(recurso: string, aoSalvo: (item: T) => void) {

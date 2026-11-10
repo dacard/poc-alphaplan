@@ -3,7 +3,7 @@
 ATENÇÃO: apaga dados/poc.db e recria do zero.
 
 Como a POC não tem o cadastro real dos contratos, ele é simulado assim:
-  - um cliente por empresa (Samp: EMPRESA/TITULAR; Easyplan: PRODUTOR; Up Health: Nome/Empresa Titular);
+  - um cliente por empresa (Samp: EMPRESA/TITULAR; Easyplan: PRODUTOR; Up Health: Nome/Empresa Titular; Quali: Nome da Empresa);
   - um contrato por identificador de contrato no relatório;
   - regra de comissão = percentual mais comum na parcela 1 e nas demais;
   - colaboradores = quem aparece no "mês base" do contrato (1º mês com volume normal),
@@ -36,11 +36,26 @@ def _moda(valores, padrao):
     return Counter(valores).most_common(1)[0][0] if valores else padrao
 
 
-def _regras(linhas) -> list[dict]:
-    p1 = _moda([l.percentual for l in linhas if l.parcela == 1], 100.0)
-    demais = _moda([l.percentual for l in linhas if (l.parcela or 0) > 1], p1)
-    return [{"parcela_de": 1, "parcela_ate": 1, "percentual": p1},
-            {"parcela_de": 2, "parcela_ate": None, "percentual": demais}]
+def _regras(linhas, primeiras: int = 3) -> list[dict]:
+    """Percentual mais comum em cada uma das primeiras parcelas e nas demais.
+
+    Ex.: agenciamento dividido (parcelas 1-2 = 50%) e vitalício (3 em diante = 3%).
+    Faixas vizinhas com o mesmo percentual são unidas.
+    """
+    pagos = [l for l in linhas if l.valor_comissao > 0]
+    demais = _moda([l.percentual for l in pagos if (l.parcela or 0) > primeiras],
+                   _moda([l.percentual for l in pagos if (l.parcela or 0) > 1], 100.0))
+    faixas = []
+    for n in range(1, primeiras + 1):
+        faixas.append([n, n, _moda([l.percentual for l in pagos if l.parcela == n], demais)])
+    faixas.append([primeiras + 1, None, demais])
+    unidas = [faixas[0]]
+    for f in faixas[1:]:
+        if f[2] == unidas[-1][2]:
+            unidas[-1][1] = f[1]
+        else:
+            unidas.append(f)
+    return [{"parcela_de": de, "parcela_ate": ate, "percentual": pct} for de, ate, pct in unidas]
 
 
 def criar_contrato(session, cliente, produto, adm, ref, linhas, chave):
@@ -77,7 +92,8 @@ def main():
         bluzz = Operadora(nome="Bluzz Saúde")
         easyplan = Administradora(nome="Easyplan", codigo_fonte="easyplan")
         uphealth = Administradora(nome="Up Health", codigo_fonte="uphealth")
-        s.add_all([samp, bluzz, easyplan, uphealth, Operadora(nome="Unimed"), Operadora(nome="Amil"),
+        quali = Administradora(nome="Quali", codigo_fonte="quali")
+        s.add_all([samp, bluzz, easyplan, uphealth, quali, Operadora(nome="Unimed"), Operadora(nome="Amil"),
                    Administradora(nome="Benevix"), Administradora(nome="Mediatorie")])
         s.commit()
 
@@ -86,7 +102,12 @@ def main():
         prod_samp = Produto(nome="Samp Empresarial", operadora_id=samp.id)
         prod_bluzz = Produto(nome="Bluzz Saúde Adesão", operadora_id=bluzz.id)
         prod_samp_tipo = {t: Produto(nome=f"Samp {t}", operadora_id=samp.id) for t in ("Médico", "Dental")}
-        s.add_all([prod_samp, prod_bluzz, *prod_samp_tipo.values()])
+        # O relatório da Quali não informa a operadora
+        op_indefinida = Operadora(nome="Operadora não informada")
+        s.add(op_indefinida)
+        s.flush()
+        prod_quali = Produto(nome="Plano Quali", operadora_id=op_indefinida.id)
+        s.add_all([prod_samp, prod_bluzz, prod_quali, *prod_samp_tipo.values()])
         s.flush()
 
         linhas = s.exec(select(LinhaRelatorio)).all()
@@ -107,6 +128,8 @@ def main():
             cli = cliente(_moda([l.empresa for l in ls], ref).title())
             if fonte == "samp":
                 c, n = criar_contrato(s, cli, prod_samp, None, ref, ls, "nome")
+            elif fonte == "quali":
+                c, n = criar_contrato(s, cli, prod_quali, quali, ref, ls, "nome")
             elif fonte == "uphealth":
                 produto = prod_samp_tipo[ref.split(" / ")[-1]]
                 c, n = criar_contrato(s, cli, produto, uphealth, ref, ls, "nome")
