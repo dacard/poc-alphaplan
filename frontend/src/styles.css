@@ -308,3 +308,17 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(31,95,209,.2
   .painel-indicadores { grid-template-columns: 1fr; }
   .grade-indicadores { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Filtro de período */
+.barra > button.link:last-child { margin-left: 0; }
+.filtro-periodo { width: 300px; display: flex; flex-direction: column; gap: 10px; }
+.periodo-atalhos { display: flex; flex-direction: column; }
+.periodo-atalhos button { background: none; border: none; text-align: left; color: var(--texto, #1d2433); padding: 6px 8px; border-radius: 6px; font-weight: 400; }
+.periodo-atalhos button:hover { background: #f0f2f5; }
+.periodo-atalhos button.ativo { background: #e8effc; color: var(--primaria); font-weight: 600; }
+.periodo-personalizado { border-top: 1px solid var(--borda); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.periodo-campos { display: flex; gap: 8px; }
+.periodo-campos label { flex: 1; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--mudo); }
+.periodo-campos input { width: 100%; padding: 6px 8px; border: 1px solid var(--borda); border-radius: 6px; font: inherit; font-size: 13px; }
+.periodo-personalizado > button { align-self: flex-end; }
+.erro-texto { color: #c0392b; }

@@ -66,7 +66,12 @@ cd backend && ../.venv/bin/python -m app.seed && cd ..
 
 Indicadores (clientes, operadoras, administradoras, contratos, colaboradores ativos, relatórios e
 pagamentos processados, receita total), receita por competência × esperado pelo cadastro, vidas com
-comissão e projeção dos próximos meses, tudo filtrável por cliente.
+comissão e projeção dos próximos meses, tudo filtrável por cliente e por período (competência).
+
+**Filtro de período** (atalhos ou De/Até): indicadores, gráficos e esperado consideram só as
+competências do período; contratos contam se começaram até o fim dele e colaboradores ativos são os
+do último mês. Os alertas comparam os 3 últimos meses do período com os 3 anteriores. A projeção só
+aparece quando o período vai até o mês atual.
 
 **Projeção** = tendência linear das vidas com comissão × tendência da receita por vida (amortecida),
 calculadas nos últimos 6 meses completos. O mês em andamento entra como projeção. A faixa sombreada

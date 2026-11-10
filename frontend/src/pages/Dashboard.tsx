@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Cliente } from "../api";
 import FiltroClientes from "../components/FiltroClientes";
+import FiltroPeriodo, { Periodo, rotuloPeriodo } from "../components/FiltroPeriodo";
 import GraficoLinha, { Serie } from "../components/GraficoLinha";
 import { Cabecalho, Carregando, Impacto, useApi } from "../components/ui";
 import { competencia, moeda } from "../formato";
@@ -17,6 +18,7 @@ interface Alerta {
   vidas_antes: number; vidas_depois: number; causa: string; tipo: "sem_pagamento" | "vidas" | "valor";
 }
 interface DadosDashboard {
+  periodo: { inicio: string | null; fim: string | null; disponivel: [string, string] | null; projecao_disponivel: boolean };
   alertas: { periodo_anterior: [string, string]; periodo_recente: [string, string]; total: number; perda_mensal: number; itens: Alerta[] };
   indicadores: Record<"clientes" | "operadoras" | "administradoras" | "contratos" | "colaboradores" |
     "relatorios" | "pagamentos" | "receita" | "estornos", number>;
@@ -39,8 +41,14 @@ const inteiro = (v: number) => Math.round(v).toLocaleString("pt-BR");
 export default function Dashboard() {
   const clientes = useApi<Cliente[]>("/clientes");
   const [selecao, setSelecao] = useState<number[] | null>(null);
-  const caminho = selecao == null ? "/dashboard" : `/dashboard?clientes=${selecao.join(",")}`;
+  const [periodo, setPeriodo] = useState<Periodo>({ inicio: null, fim: null });
+  const parametros = new URLSearchParams();
+  if (selecao != null) parametros.set("clientes", selecao.join(","));
+  if (periodo.inicio) parametros.set("inicio", periodo.inicio);
+  if (periodo.fim) parametros.set("fim", periodo.fim);
+  const caminho = `/dashboard${parametros.size ? `?${parametros.toString().replace(/%2C/g, ",")}` : ""}`;
   const { dados, erro, carregando } = useApi<DadosDashboard>(caminho);
+  const filtrado = !!(periodo.inicio || periodo.fim);
   const [tabela, setTabela] = useState(false);
 
   const opcoes = useMemo(() => (clientes.dados || [])
@@ -52,17 +60,19 @@ export default function Dashboard() {
       <Cabecalho titulo="Dashboard" subtitulo="Visão geral das comissões processadas e da projeção para os próximos meses." />
       <div className="barra">
         <FiltroClientes opcoes={opcoes} selecionados={selecao} aoMudar={setSelecao} />
+        <FiltroPeriodo valor={periodo} aoMudar={setPeriodo} disponivel={dados?.periodo.disponivel} />
+        {filtrado && <button className="link" onClick={() => setPeriodo({ inicio: null, fim: null })}>Limpar período</button>}
       </div>
       {!dados ? <Carregando erro={erro} /> : (
         <div className={carregando ? "recarregando" : ""}>
-          <Indicadores d={dados} />
+          <Indicadores d={dados} filtrado={filtrado} rotulo={rotuloPeriodo(periodo)} />
           <PainelAlertas a={dados.alertas} />
           {dados.serie.length ? (
             <>
               <CartaoReceita d={dados} tabela={tabela} setTabela={setTabela} />
               <CartaoVidas d={dados} />
             </>
-          ) : <div className="aviso">Nenhum relatório processado para a seleção.</div>}
+          ) : <div className="aviso">Nenhum relatório processado para a seleção{filtrado ? " no período" : ""}.</div>}
         </div>
       )}
     </>
@@ -123,21 +133,21 @@ function PainelAlertas({ a }: { a: DadosDashboard["alertas"] }) {
   );
 }
 
-function Indicadores({ d }: { d: DadosDashboard }) {
+function Indicadores({ d, filtrado, rotulo }: { d: DadosDashboard; filtrado: boolean; rotulo: string }) {
   const i = d.indicadores;
   const itens: [string, string, string?][] = [
     ["Clientes", inteiro(i.clientes), "/clientes"],
     ["Operadoras", inteiro(i.operadoras), "/operadoras"],
     ["Administradoras", inteiro(i.administradoras), "/administradoras"],
     ["Contratos", inteiro(i.contratos)],
-    ["Colaboradores ativos", inteiro(i.colaboradores)],
+    [d.periodo.fim ? `Colaboradores ativos em ${competencia(d.periodo.fim)}` : "Colaboradores ativos", inteiro(i.colaboradores)],
     ["Relatórios processados", inteiro(i.relatorios), "/relatorios"],
     ["Pagamentos processados", inteiro(i.pagamentos)],
   ];
   return (
     <div className="painel-indicadores">
       <div className="cartao heroi">
-        <span>Receita total</span>
+        <span>{filtrado ? `Receita · ${rotulo}` : "Receita total"}</span>
         <b>{moeda(i.receita)}</b>
         <small className="mudo">comissões recebidas, já descontados {moeda(i.estornos)} de estornos</small>
       </div>
@@ -191,7 +201,7 @@ function CartaoReceita({ d, tabela, setTabela }: { d: DadosDashboard; tabela: bo
         <div>
           <h2>Receita por competência</h2>
           <p className="mudo pequeno">Comissão líquida recebida em cada mês de competência, comparada ao esperado pelo cadastro.
-            A área sombreada é a projeção.</p>
+            {d.projecao.meses.length ? " A área sombreada é a projeção." : ""}</p>
         </div>
         <div className="segmentado">
           <button className={!tabela ? "ativo" : ""} onClick={() => setTabela(false)}>Gráfico</button>
@@ -204,6 +214,9 @@ function CartaoReceita({ d, tabela, setTabela }: { d: DadosDashboard; tabela: bo
           formatarEixo={moedaEixo} inicioProjecao={inicioProjecao} />
       )}
 
+      {!d.periodo.projecao_disponivel && (
+        <p className="nota">A projeção aparece quando o período vai até o mês atual.</p>
+      )}
       {r && (
         <div className="resumo-projecao">
           <div><span>Receita projetada ({competencia(proj[0].competencia)} a {competencia(proj[proj.length - 1].competencia)})</span>
@@ -217,12 +230,12 @@ function CartaoReceita({ d, tabela, setTabela }: { d: DadosDashboard; tabela: bo
           <div><span>Estornos (média mensal)</span><b>{moeda(r.estornos_medios)}</b></div>
         </div>
       )}
-      <p className="nota">
+      {r && <p className="nota">
         Projeção: tendência das vidas com comissão × tendência da receita por vida nos últimos {d.projecao.base.length} meses
         completos ({d.projecao.base.length ? `${competencia(d.projecao.base[0])} a ${competencia(d.projecao.base[d.projecao.base.length - 1])}` : "—"}).
         A receita por vida usa tendência amortecida, porque quedas como o fim do agenciamento se estabilizam.
         {parcial && <> O mês em andamento ({competencia(parcial.competencia)}, {moeda(parcial.receita)} até agora) entra como projeção.</>}
-      </p>
+      </p>}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 """API da POC. Rodar a partir de backend/:  ../.venv/bin/uvicorn app.main:app --reload"""
+import re
 from collections import defaultdict
 from datetime import date
 
@@ -121,10 +122,16 @@ def limpar_conversa(conversa_id: str):
 # ---------- Dashboard ----------
 
 @app.get("/api/dashboard", tags=["telas"])
-def dashboard(clientes: str | None = None, session: Session = SessionDep):
-    """clientes: ids separados por vírgula; ausente = todos."""
+def dashboard(clientes: str | None = None, inicio: str | None = None, fim: str | None = None,
+              session: Session = SessionDep):
+    """clientes: ids separados por vírgula; ausente = todos. inicio/fim: competência AAAA-MM."""
+    for valor in (inicio, fim):
+        if valor and not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", valor):
+            raise HTTPException(422, "Período inválido: use AAAA-MM.")
+    if inicio and fim and inicio > fim:
+        inicio, fim = fim, inicio
     ids = None if clientes is None else [int(x) for x in clientes.split(",") if x.strip()]
-    return dados_dashboard(session, ids)
+    return dados_dashboard(session, ids, inicio or None, fim or None)
 
 
 # ---------- Visões enriquecidas para as telas ----------

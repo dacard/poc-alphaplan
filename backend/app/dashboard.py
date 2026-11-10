@@ -44,12 +44,19 @@ def _tendencia(valores: list[float]) -> tuple[float, float]:
     return my - b * mx, b
 
 
-def dados_dashboard(session: Session, cliente_ids: list[int] | None) -> dict:
+def dados_dashboard(session: Session, cliente_ids: list[int] | None,
+                    inicio: str | None = None, fim: str | None = None) -> dict:
+    """inicio/fim: competências "AAAA-MM" (inclusive); ausentes = sem limite."""
     hoje = date.today().strftime("%Y-%m")
     q = select(Contrato)
     if cliente_ids is not None:
         q = q.where(Contrato.cliente_id.in_(cliente_ids or [-1]))
-    contratos = list(session.exec(q))
+    todos_contratos = list(session.exec(q))
+    no_periodo = lambda comp: (not inicio or comp >= inicio) and (not fim or comp <= fim)
+    # Mês de referência do fim do período: nunca depois do mês atual
+    ref = min(fim, hoje) if fim else hoje
+    # Contratos vigentes no período: começaram até o fim dele
+    contratos = [c for c in todos_contratos if conc.mes(c.data_inicio) <= ref]
 
     # Linhas de relatório dos contratos selecionados
     refs = {}
@@ -57,19 +64,25 @@ def dados_dashboard(session: Session, cliente_ids: list[int] | None) -> dict:
         fonte = conc.fonte_do_contrato(session, c)
         if fonte:
             refs[(fonte, c.identificador_relatorio)] = c.id
-    linhas = [l for l in session.exec(select(LinhaRelatorio)) if (l.fonte, l.contrato_ref) in refs]
+    todas_linhas = [l for l in session.exec(select(LinhaRelatorio)) if (l.fonte, l.contrato_ref) in refs]
+    competencias = [l.competencia for l in todas_linhas if l.competencia <= hoje]
+    disponivel = [min(competencias), max(competencias)] if competencias else None
+    linhas = [l for l in todas_linhas if no_periodo(l.competencia)]
 
     # ---------- indicadores ----------
     produtos = {p.id: p for p in session.exec(select(Produto))}
     colaboradores = list(session.exec(select(Colaborador).where(
         Colaborador.contrato_id.in_([c.id for c in contratos] or [-1]))))
-    total_clientes = len(cliente_ids) if cliente_ids is not None else len(session.exec(select(Cliente)).all())
+    if inicio or fim:
+        total_clientes = len({c.cliente_id for c in contratos})
+    else:
+        total_clientes = len(cliente_ids) if cliente_ids is not None else len(session.exec(select(Cliente)).all())
     indicadores = {
         "clientes": total_clientes,
         "operadoras": len({produtos[c.produto_id].operadora_id for c in contratos}),
         "administradoras": len({c.administradora_id for c in contratos if c.administradora_id}),
         "contratos": len(contratos),
-        "colaboradores": sum(1 for x in colaboradores if conc.ativo_no_mes(x, hoje)),
+        "colaboradores": sum(1 for x in colaboradores if conc.ativo_no_mes(x, ref)),
         "relatorios": len({l.relatorio_id for l in linhas}),
         "pagamentos": sum(1 for l in linhas if l.valor_comissao > 0),
         "receita": round(sum(l.valor_comissao for l in linhas), 2),
@@ -90,7 +103,7 @@ def dados_dashboard(session: Session, cliente_ids: list[int] | None) -> dict:
     esperado = defaultdict(float)
     for c in contratos:
         for m in conc.conciliar_contrato(session, c)["meses"]:
-            if m["competencia"] <= hoje:
+            if m["competencia"] <= hoje and no_periodo(m["competencia"]):
                 esperado[m["competencia"]] += m["esperado"]["comissao"]
 
     meses = conc.meses_entre(min(por_mes), max(por_mes)) if por_mes else []
@@ -107,19 +120,26 @@ def dados_dashboard(session: Session, cliente_ids: list[int] | None) -> dict:
             "parcial": comp == hoje,
         })
 
+    # Alertas usam todas as linhas: a janela de comparação pode começar antes do período
     por_contrato = defaultdict(list)
-    for l in linhas:
+    for l in todas_linhas:
         por_contrato[refs[(l.fonte, l.contrato_ref)]].append(l)
-    return {"indicadores": indicadores, "serie": serie, "projecao": _projetar(serie),
-            "alertas": _alertas(session, contratos, por_contrato, hoje)}
+    # A projeção só faz sentido quando o período chega ao presente
+    ultimo_completo = conc.ultimo_mes_completo()
+    projetar = not fim or fim >= ultimo_completo
+    projecao = _projetar(serie) if projetar else {"meses": [], "base": [], "resumo": None}
+    return {"indicadores": indicadores, "serie": serie, "projecao": projecao,
+            "alertas": _alertas(session, contratos, por_contrato, ref, hoje),
+            "periodo": {"inicio": inicio, "fim": fim, "disponivel": disponivel,
+                        "projecao_disponivel": projetar}}
 
 
-def _alertas(session: Session, contratos: list[Contrato], por_contrato: dict, hoje: str) -> dict:
+def _alertas(session: Session, contratos: list[Contrato], por_contrato: dict, ref: str, hoje: str) -> dict:
     """Contratos com maior queda de receita recorrente: média dos últimos meses completos
     contra a média dos meses anteriores. Agenciamento fica de fora, porque o fim dele
-    derruba a receita de todo contrato novo e não indica problema."""
-    a, m = map(int, hoje.split("-"))
-    ultimo = f"{a:04d}-{m - 1:02d}" if m > 1 else f"{a - 1:04d}-12"  # último mês completo
+    derruba a receita de todo contrato novo e não indica problema.
+    A janela termina no fim do período filtrado (ref), ou no último mês completo."""
+    ultimo = ref if ref < hoje else conc.ultimo_mes_completo()
     inicio = conc.meses_entre("2000-01", ultimo)[-2 * JANELA_ALERTA]
     janela = conc.meses_entre(inicio, ultimo)
     anteriores, recentes = janela[:JANELA_ALERTA], janela[JANELA_ALERTA:]
