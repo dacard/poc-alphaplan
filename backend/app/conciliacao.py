@@ -24,6 +24,7 @@ TIPOS = {
     "nao_cadastrado": "No relatório, sem cadastro",
     "mensalidade": "Mensalidade diferente",
     "percentual": "Percentual de comissão diferente",
+    "comissao": "Comissão paga diferente de mensalidade × percentual",
     "duplicidade": "Mesma parcela paga mais de uma vez (pode ser titular e dependente com o mesmo nome)",
     "estorno": "Estorno de comissão",
 }
@@ -209,6 +210,9 @@ def conciliar_mes(contrato, produto, colaboradores, linhas_mes, competencia) -> 
         if p["estorno"] > 0:
             tipos.append("estorno")
         impacto = round(p["comissao"] - com_esp, 2)
+        # Mensalidade e % batem, mas o valor pago não é mensalidade × %
+        if not tipos and pagamentos and abs(impacto) > contrato.tolerancia:
+            tipos.append("comissao")
         if tipos:
             divergencias.append(_item(tipos, e, p, confianca, pct, com_esp, impacto))
 

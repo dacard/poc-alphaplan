@@ -3,7 +3,7 @@
 Baixa os relatórios de comissão dos portais das operadoras/administradoras, extrai os dados
 e compara mês a mês com o cadastro dos contratos, mostrando as divergências e o impacto financeiro.
 
-Fontes desta versão: **Samp** (operadora), **Easyplan**, **Up Health** e **Quali** (administradoras).
+Fontes desta versão: **Samp** (operadora), **Easyplan**, **Up Health**, **Quali** e **Mediatorie** (administradoras).
 
 ## Estrutura
 
@@ -38,6 +38,7 @@ Credenciais no `.env`: `USUARIO_<FONTE>` e `SENHA_<FONTE>` (ex.: `USUARIO_SAMP`,
 .venv/bin/python playwright-scripts/easyplan.py
 .venv/bin/python playwright-scripts/uphealth.py
 .venv/bin/python playwright-scripts/quali.py      # mês a mês, ~70 s por mês
+.venv/bin/python playwright-scripts/mediatorie.py
 
 # 2. (Re)criar a base de demonstração — APAGA dados/poc.db
 cd backend && ../.venv/bin/python -m app.seed && cd ..
@@ -49,16 +50,17 @@ cd backend && ../.venv/bin/python -m app.seed && cd ..
 ## Regras da conciliação
 
 - **Competência**: Samp = mês de vencimento da mensalidade; Easyplan = mês da previsão de pagamento;
-  Up Health = "Mês Referência"; Quali = "Mês" (as duas quinzenas juntas).
+  Up Health = "Mês Referência"; Quali = "Mês" (as duas quinzenas juntas); Mediatorie = "Competência".
 - **Ligação relatório → contrato**: campo *Identificador no relatório* do contrato
   (Samp: nº do contrato; Easyplan: `PRODUTOR / Modalidade N` — PRODUTOR é a empresa, NOME CONTRATO o colaborador;
-  Up Health: `<nº contrato> / Médico|Dental`; Quali: código da empresa).
+  Up Health: `<nº contrato> / Médico|Dental`; Quali: código da empresa;
+  Mediatorie: `<Contrato Cliente> / Médico|Odonto`).
 - **Casamento de pessoas**: CPF (se a chave do contrato for CPF) → nome exato → nome aproximado (≥ 90%).
 - **Comissão esperada**: mensalidade × % da regra para a parcela informada no relatório.
 - **Mensalidade esperada**: tabela por faixa etária do produto (se houver e o colaborador tiver nascimento);
   senão, o valor cadastrado no colaborador, considerando os reajustes registrados (mês a partir do qual valem).
 - **Divergências**: sem comissão (esperado e ausente), não cadastrado, mensalidade diferente,
-  percentual diferente, possível duplicidade (mesma parcela paga duas vezes — pode ser titular e dependente
+  percentual diferente, comissão paga diferente de mensalidade × %, possível duplicidade (mesma parcela paga duas vezes — pode ser titular e dependente
   com o mesmo nome), estorno.
 - **Impacto** = comissão recebida − comissão esperada (positivo: recebeu a mais; negativo: a menos).
 
@@ -70,3 +72,6 @@ cd backend && ../.venv/bin/python -m app.seed && cd ..
 - **Quali**: o portal fica muito lento com períodos longos, então o robô exporta o CSV um mês por vez
   (da 1ª à 2ª quinzena). O relatório não informa a operadora. A comissão de agenciamento costuma ser
   dividida entre as parcelas 1 e 2 (50% cada).
+- **Mediatorie**: portal SAP UI5; a tela de comissão roda dentro de um iframe e cada protocolo mensal
+  tem um botão "Extrato" que baixa o Excel. É a fonte mais completa (traz CPF e data de nascimento,
+  usados no cadastro de demonstração). Na parcela 2 o percentual costuma ser 53% (agenciamento 50% + vitalício 3%).

@@ -112,7 +112,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(31,95,209,.2
 .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 5px; margin: 0 4px 3px 0; white-space: nowrap; }
 .tag-ausente { background: var(--negativo-fundo); color: var(--negativo); }
 .tag-nao_cadastrado { background: #e8effc; color: var(--primaria); }
-.tag-mensalidade, .tag-percentual { background: var(--alerta-fundo); color: var(--alerta); }
+.tag-mensalidade, .tag-percentual, .tag-comissao { background: var(--alerta-fundo); color: var(--alerta); }
 .tag-duplicidade { background: #f3e8fd; color: #7e3ad1; }
 .tag-estorno { background: var(--negativo-fundo); color: var(--negativo); }
 .impacto { font-weight: 600; font-variant-numeric: tabular-nums; }

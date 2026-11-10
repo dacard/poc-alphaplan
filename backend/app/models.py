@@ -89,6 +89,7 @@ class LinhaRelatorio(SQLModel, table=True):
     empresa: str | None = None
     nome: str
     cpf: str | None = None
+    data_nascimento: date | None = None  # quando a fonte informa (ex.: Mediatorie)
     competencia: str = Field(index=True)  # "AAAA-MM"
     parcela: int | None = None
     percentual: float | None = None

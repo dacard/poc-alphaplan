@@ -8,6 +8,7 @@ const ROTULO_CURTO: Record<string, string> = {
   nao_cadastrado: "Não cadastrado",
   mensalidade: "Mensalidade",
   percentual: "Percentual",
+  comissao: "Valor da comissão",
   duplicidade: "Possível duplicidade",
   estorno: "Estorno",
 };
@@ -60,6 +61,7 @@ function resumoMes(m: Mes): string {
   if (c.nao_cadastrado) partes.push(`${plural(c.nao_cadastrado, "pessoa no relatório não está", "pessoas no relatório não estão")} no cadastro`);
   if (c.mensalidade) partes.push(`${plural(c.mensalidade, "mensalidade diferente", "mensalidades diferentes")} do cadastrado`);
   if (c.percentual) partes.push(`${plural(c.percentual, "percentual diferente", "percentuais diferentes")} da regra`);
+  if (c.comissao) partes.push(`${plural(c.comissao, "comissão paga diferente", "comissões pagas diferentes")} de mensalidade × %`);
   if (c.duplicidade) partes.push(`${plural(c.duplicidade, "parcela paga", "parcelas pagas")} em duplicidade`);
   if (c.estorno) partes.push(`${plural(c.estorno, "estorno", "estornos")}`);
   return partes.join("; ") + ".";

@@ -3,7 +3,7 @@
 ATENÇÃO: apaga dados/poc.db e recria do zero.
 
 Como a POC não tem o cadastro real dos contratos, ele é simulado assim:
-  - um cliente por empresa (Samp: EMPRESA/TITULAR; Easyplan: PRODUTOR; Up Health: Nome/Empresa Titular; Quali: Nome da Empresa);
+  - um cliente por empresa (Samp: EMPRESA/TITULAR; Easyplan: PRODUTOR; Up Health: Nome/Empresa Titular; Quali: Nome da Empresa; Mediatorie: Nome do Resp. Finan);
   - um contrato por identificador de contrato no relatório;
   - regra de comissão = percentual mais comum na parcela 1 e nas demais;
   - colaboradores = quem aparece no "mês base" do contrato (1º mês com volume normal),
@@ -78,6 +78,7 @@ def criar_contrato(session, cliente, produto, adm, ref, linhas, chave):
         vistos.setdefault(normalizar_nome(l.nome), l)
     for l in vistos.values():
         session.add(Colaborador(contrato_id=contrato.id, nome=l.nome.title(), cpf=l.cpf,
+                                data_nascimento=l.data_nascimento,
                                 data_inclusao=inicio, valor_mensalidade=l.valor_base))
     return contrato, len(vistos)
 
@@ -93,8 +94,10 @@ def main():
         easyplan = Administradora(nome="Easyplan", codigo_fonte="easyplan")
         uphealth = Administradora(nome="Up Health", codigo_fonte="uphealth")
         quali = Administradora(nome="Quali", codigo_fonte="quali")
-        s.add_all([samp, bluzz, easyplan, uphealth, quali, Operadora(nome="Unimed"), Operadora(nome="Amil"),
-                   Administradora(nome="Benevix"), Administradora(nome="Mediatorie")])
+        mediatorie = Administradora(nome="Mediatorie", codigo_fonte="mediatorie")
+        unimed = Operadora(nome="Unimed")
+        s.add_all([samp, bluzz, easyplan, uphealth, quali, mediatorie, unimed, Operadora(nome="Amil"),
+                   Administradora(nome="Benevix")])
         s.commit()
 
         print("Importando relatórios:", importar(s))
@@ -107,6 +110,8 @@ def main():
         s.add(op_indefinida)
         s.flush()
         prod_quali = Produto(nome="Plano Quali", operadora_id=op_indefinida.id)
+        prod_unimed = {t: Produto(nome=f"Unimed {t}", operadora_id=unimed.id) for t in ("Médico", "Odonto")}
+        s.add_all(prod_unimed.values())
         s.add_all([prod_samp, prod_bluzz, prod_quali, *prod_samp_tipo.values()])
         s.flush()
 
@@ -128,6 +133,9 @@ def main():
             cli = cliente(_moda([l.empresa for l in ls], ref).title())
             if fonte == "samp":
                 c, n = criar_contrato(s, cli, prod_samp, None, ref, ls, "nome")
+            elif fonte == "mediatorie":
+                produto = prod_unimed[ref.split(" / ")[-1]]
+                c, n = criar_contrato(s, cli, produto, mediatorie, ref, ls, "cpf")
             elif fonte == "quali":
                 c, n = criar_contrato(s, cli, prod_quali, quali, ref, ls, "nome")
             elif fonte == "uphealth":
