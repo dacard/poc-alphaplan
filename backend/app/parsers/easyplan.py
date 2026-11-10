@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .comum import numero_br, so_digitos
+from .comum import ArquivoInvalido, hoje_br, numero_br, separar, so_digitos
 
 FONTE = "easyplan"
 
@@ -34,6 +34,20 @@ def metadados(pasta: Path) -> dict:
         "data_referencia": datetime.strptime(data, "%d/%m/%Y").date() if data else None,
         "status": info.get("Status Pagamento"),
     }
+
+
+# ---------- upload manual ----------
+ACEITA = ".xlsx"
+INSTRUCOES = "Excel do relatório de comissões (\"Relatório_-_*.xlsx\", opção \"Baixar Excel\")."
+
+
+def preparar_upload(arquivos: list[tuple[str, bytes]], pasta: Path) -> None:
+    grupos = separar(arquivos, "xlsx")
+    if len(grupos["xlsx"]) != 1:
+        raise ArquivoInvalido("Envie um único Excel do relatório da Easyplan.")
+    nome, conteudo = grupos["xlsx"][0]
+    (pasta / nome).write_bytes(conteudo)
+    (pasta / "info.txt").write_text(f"Data Relatório: {hoje_br()}\nStatus Pagamento: Upload manual\n")
 
 
 def contrato_ref(produtor: str, modalidade: str) -> str:

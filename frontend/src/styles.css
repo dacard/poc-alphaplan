@@ -216,6 +216,24 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(31,95,209,.2
 .filtro-lista { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
 .filtro-lista .checkbox { padding: 4px 2px; font-size: 13px; }
 
+/* ---------- relatórios / upload ---------- */
+.col-check { width: 36px; }
+.col-check input { width: auto; }
+.col-coleta { max-width: 360px; }
+.fontes-tabela td { vertical-align: middle; }
+.fontes-tabela .acoes-linha { display: flex; gap: 6px; justify-content: flex-end; }
+.topo-secao { margin-top: 28px; }
+.selo.erro { background: var(--negativo-fundo); color: var(--negativo); }
+.tag-manual { background: #f3e8fd; color: #7e3ad1; }
+.tag-portal { background: #eef1f5; color: #3b4352; }
+.girando { display: inline-block; width: 9px; height: 9px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; margin-right: 6px; vertical-align: -1px; animation: girar .8s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+.area-upload { border: 2px dashed var(--borda); border-radius: 10px; padding: 26px 16px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; background: #fafbfc; }
+.area-upload:hover, .area-upload.arrastando { border-color: var(--primaria); background: #f2f6fd; }
+.lista-arquivos { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-direction: column; gap: 6px; }
+.lista-arquivos li { display: flex; align-items: center; gap: 10px; border: 1px solid var(--borda); border-radius: 8px; padding: 6px 10px; }
+.lista-arquivos li span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* ---------- avisos ---------- */
 .aviso { background: #eef3fb; border: 1px solid #d3def3; color: #2a4473; border-radius: var(--raio); padding: 12px 14px; margin: 10px 0; }
 .aviso.erro { background: var(--negativo-fundo); border-color: #f5c6c2; color: var(--negativo); }

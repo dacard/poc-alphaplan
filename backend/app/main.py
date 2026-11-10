@@ -1,22 +1,22 @@
 """API da POC. Rodar a partir de backend/:  ../.venv/bin/uvicorn app.main:app --reload"""
-import subprocess
-import sys
 from collections import defaultdict
 from datetime import date
 
-from fastapi import Body, Depends, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from sqlmodel import Session, SQLModel, func, select
 
+from . import coletas
 from . import conciliacao as conc
 from .db import RAIZ, criar_tabelas, get_session
 from .dashboard import dados_dashboard
-from .importador import importar
+from .importador import importar, remover_relatorio
 from .models import (Administradora, Cliente, Colaborador, Contrato, LinhaRelatorio, Operadora,
                      Produto, Relatorio)
 from .parsers import PARSERS
+from .parsers.comum import ArquivoInvalido
 
 app = FastAPI(title="POC Alphaplan - Conciliação de comissões")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -217,8 +217,27 @@ def acao_divergencia(contrato_id: int, dados: dict = Body(...), session: Session
 
 @app.get("/api/fontes", tags=["relatorios"])
 def fontes(session: Session = SessionDep):
-    contagem = dict(session.exec(select(Relatorio.fonte, func.count()).group_by(Relatorio.fonte)).all())
-    return [{"codigo": c, "relatorios": contagem.get(c, 0)} for c in PARSERS]
+    """Uma linha por fonte: nome, relatórios importados, último relatório, coleta e upload."""
+    nomes = {o.codigo_fonte: o.nome for o in session.exec(select(Operadora)) if o.codigo_fonte}
+    nomes |= {a.codigo_fonte: a.nome for a in session.exec(select(Administradora)) if a.codigo_fonte}
+    resumo = {f: (n, ultimo, importado) for f, n, ultimo, importado in session.exec(
+        select(Relatorio.fonte, func.count(), func.max(Relatorio.data_referencia), func.max(Relatorio.importado_em))
+        .group_by(Relatorio.fonte)).all()}
+    saida = []
+    for codigo, parser in PARSERS.items():
+        n, ultimo, importado = resumo.get(codigo, (0, None, None))
+        saida.append({
+            "codigo": codigo,
+            "nome": nomes.get(codigo, codigo),
+            "relatorios": n,
+            "ultimo_relatorio": ultimo,
+            "ultima_importacao": importado,
+            "tem_robo": (RAIZ / "playwright-scripts" / f"{codigo}.py").exists(),
+            "aceita": getattr(parser, "ACEITA", None),
+            "instrucoes": getattr(parser, "INSTRUCOES", None),
+            "coleta": coletas.estado(codigo),
+        })
+    return saida
 
 
 @app.get("/api/relatorios", tags=["relatorios"])
@@ -237,18 +256,36 @@ def linhas_do_relatorio(relatorio_id: int, contrato_ref: str | None = None, sess
     return session.exec(q.order_by(LinhaRelatorio.nome)).all()
 
 
+@app.delete("/api/relatorios/{relatorio_id}", tags=["relatorios"])
+def excluir_relatorio(relatorio_id: int, session: Session = SessionDep):
+    """Remove o relatório e suas linhas. Se veio de upload manual, apaga também os arquivos
+    (os baixados pelo robô ficam em disco e voltariam numa próxima importação)."""
+    manual = remover_relatorio(session, _obter(session, Relatorio, relatorio_id))
+    session.commit()
+    return {"ok": True, "arquivos_removidos": manual}
+
+
 @app.post("/api/importar", tags=["relatorios"])
 def importar_relatorios(fonte: str | None = None, session: Session = SessionDep):
     return importar(session, fonte)
 
 
 @app.post("/api/coletar/{fonte}", tags=["relatorios"])
-def coletar(fonte: str, session: Session = SessionDep):
-    """Roda o robô de coleta da fonte (Playwright) e importa o que foi baixado."""
-    script = RAIZ / "playwright-scripts" / f"{fonte}.py"
-    if fonte not in PARSERS or not script.exists():
-        raise HTTPException(404, f"Fonte '{fonte}' sem script de coleta")
-    proc = subprocess.run([sys.executable, str(script)], capture_output=True, text=True, timeout=900)
-    if proc.returncode != 0:
-        raise HTTPException(500, f"Falha na coleta: {proc.stderr[-1500:]}")
-    return {"saida": proc.stdout[-3000:], "importacao": importar(session, fonte)}
+def coletar(fonte: str):
+    """Inicia o robô de coleta da fonte em segundo plano; acompanhe em /api/fontes."""
+    try:
+        return coletas.iniciar_coleta(fonte)
+    except KeyError as erro:
+        raise HTTPException(404, str(erro))
+
+
+@app.post("/api/upload/{fonte}", tags=["relatorios"])
+async def upload(fonte: str, arquivos: list[UploadFile] = File(...)):
+    """Upload manual (ex.: relatório recebido por e-mail quando o portal está fora do ar)."""
+    recebidos = [(a.filename or "arquivo", await a.read()) for a in arquivos]
+    try:
+        return coletas.receber_upload(fonte, recebidos)
+    except KeyError as erro:
+        raise HTTPException(404, str(erro))
+    except ArquivoInvalido as erro:
+        raise HTTPException(422, str(erro))

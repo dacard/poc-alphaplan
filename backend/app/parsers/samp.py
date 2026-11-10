@@ -10,7 +10,10 @@ from pathlib import Path
 
 import pandas as pd
 
-from .comum import numero_br
+import io
+import zipfile
+
+from .comum import ArquivoInvalido, hoje_br, numero_br, separar
 
 FONTE = "samp"
 
@@ -27,7 +30,32 @@ def metadados(pasta: Path) -> dict:
     texto = (pasta / "referencia.txt").read_text().strip() if (pasta / "referencia.txt").exists() else ""
     vencimento, _, referencia = texto.partition("|")
     data = datetime.strptime(vencimento.strip(), "%d/%m/%Y").date() if vencimento.strip() else None
-    return {"referencia": referencia.strip() or pasta.name, "data_referencia": data, "status": "Confirmada"}
+    status = "Upload manual" if pasta.name.startswith("manual-") else "Confirmada"
+    return {"referencia": referencia.strip() or pasta.name, "data_referencia": data, "status": status}
+
+
+# ---------- upload manual ----------
+ACEITA = ".zip,.csv"
+INSTRUCOES = ("ZIP do recibo completo, como vem do portal/e-mail, ou só o CSV "
+              "\"Planilha_do_Pagamento_*.csv\" (não o de não pagos).")
+
+
+def preparar_upload(arquivos: list[tuple[str, bytes]], pasta: Path) -> None:
+    grupos = separar(arquivos, "zip", "csv")
+    candidatos = []
+    for nome, conteudo in grupos["zip"]:
+        (pasta / nome).write_bytes(conteudo)
+        with zipfile.ZipFile(io.BytesIO(conteudo)) as z:
+            z.extractall(pasta / "extraido")
+        candidatos += [(f.name, f.read_bytes()) for f in (pasta / "extraido").rglob("*.csv")]
+    candidatos += grupos["csv"]
+    pagamento = [(n, c) for n, c in candidatos if not n.lower().endswith("nao_pagos.csv")]
+    if len(pagamento) != 1:
+        raise ArquivoInvalido("Envie exatamente uma planilha de pagamento da Samp "
+                              "(o CSV que não termina em Nao_pagos), direto ou dentro do ZIP.")
+    nome, conteudo = pagamento[0]
+    (pasta / nome).write_bytes(conteudo)
+    (pasta / "referencia.txt").write_text(f"{hoje_br()} | Upload manual — {nome}\n")
 
 
 def ler(arquivo: Path) -> list[dict]:

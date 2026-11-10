@@ -4,6 +4,7 @@ pandas==3.1.1
 pdfplumber==0.11.10
 playwright==1.65.0
 python-dotenv==1.2.4
+python-multipart==0.0.33
 RapidFuzz==3.14.6
 sqlmodel==0.0.48
 uvicorn==0.54.0

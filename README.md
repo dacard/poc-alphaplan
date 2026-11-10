@@ -47,6 +47,20 @@ cd backend && ../.venv/bin/python -m app.seed && cd ..
 ./iniciar.sh            # http://localhost:5180
 ```
 
+## Tela de Relatórios: coleta e upload manual
+
+- Lista das fontes, todas pré-selecionadas: **Coletar** uma fonte ou **Coletar selecionadas** em massa.
+  A coleta roda em segundo plano (robô + importação) e o estado aparece na própria lista.
+- **Upload manual** por fonte, para quando o portal está fora do ar e o relatório chega por e-mail.
+  Aceita os mesmos formatos do portal (Samp: ZIP ou CSV; Easyplan e Mediatorie: Excel; Up Health: TXT
+  + PDF opcional; Quali: CSV). Os arquivos ficam em `dados/brutos/<fonte>/manual-<data>/`.
+- Antes de importar, o arquivo é conferido: formato, colunas e **conteúdo já importado** (comparação
+  linha a linha, porque o portal gera um arquivo diferente a cada download). Sobreposição parcial também
+  é recusada, para não contar comissão em dobro.
+- Quando o portal volta e o robô baixa um relatório com as mesmas linhas, **a versão do portal
+  substitui o upload manual** automaticamente.
+- Relatórios podem ser excluídos (upload errado, por exemplo).
+
 ## Dashboard (tela inicial)
 
 Indicadores (clientes, operadoras, administradoras, contratos, colaboradores ativos, relatórios e

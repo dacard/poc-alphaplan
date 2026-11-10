@@ -1,5 +1,25 @@
 import re
 import unicodedata
+from datetime import date
+
+
+class ArquivoInvalido(ValueError):
+    """Arquivo enviado manualmente que não corresponde ao relatório esperado."""
+
+
+def hoje_br() -> str:
+    return date.today().strftime("%d/%m/%Y")
+
+
+def separar(arquivos: list[tuple[str, bytes]], *extensoes: str) -> dict[str, list[tuple[str, bytes]]]:
+    """Agrupa os arquivos enviados por extensão; recusa extensões não aceitas."""
+    grupos = {e: [] for e in extensoes}
+    for nome, conteudo in arquivos:
+        ext = nome.lower().rsplit(".", 1)[-1] if "." in nome else ""
+        if ext not in grupos:
+            raise ArquivoInvalido(f"Formato não aceito: {nome} (aceitos: {', '.join(extensoes)})")
+        grupos[ext].append((nome, conteudo))
+    return grupos
 
 
 def numero_br(valor) -> float:

@@ -10,7 +10,9 @@ from pathlib import Path
 
 import pandas as pd
 
-from .comum import numero_br, so_digitos
+from collections import Counter
+
+from .comum import ArquivoInvalido, numero_br, separar, so_digitos
 
 FONTE = "mediatorie"
 
@@ -33,6 +35,26 @@ def metadados(pasta: Path) -> dict:
         "data_referencia": date(int(emissao[:4]), int(emissao[4:6]), 1) if len(emissao) == 8 else None,
         "status": None,
     }
+
+
+# ---------- upload manual ----------
+ACEITA = ".xlsx"
+INSTRUCOES = "Excel do extrato do protocolo (\"Extrato Comissao.xlsx\", botão \"Extrato\")."
+
+
+def preparar_upload(arquivos: list[tuple[str, bytes]], pasta: Path) -> None:
+    grupos = separar(arquivos, "xlsx")
+    if len(grupos["xlsx"]) != 1:
+        raise ArquivoInvalido("Envie um único Excel de extrato da Mediatorie.")
+    destino = pasta / "extrato.xlsx"
+    destino.write_bytes(grupos["xlsx"][0][1])
+    df = pd.read_excel(destino, dtype=str).fillna("")
+    if "Competência" not in df.columns:
+        raise ArquivoInvalido("O Excel não parece um extrato da Mediatorie (sem a coluna \"Competência\").")
+    mes, ano = Counter(df["Competência"]).most_common(1)[0][0].split(".")
+    total = sum(_numero(v) for v in df["Valor da Comissão"])
+    (pasta / "info.txt").write_text(
+        f"Protocolo: upload manual\nEmissão: {ano}{mes}01\nValor: {total:.2f}".replace(".", ",") + "\n")
 
 
 def _numero(valor) -> float:

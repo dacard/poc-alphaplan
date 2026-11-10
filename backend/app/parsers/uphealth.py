@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pdfplumber
 
-from .comum import numero_br
+from .comum import ArquivoInvalido, numero_br, separar
 
 FONTE = "uphealth"
 
@@ -46,6 +46,30 @@ def metadados(pasta: Path) -> dict:
         "data_referencia": datetime.strptime(fim, "%d/%m/%Y").date() if fim else None,
         "status": info.get("Situação"),
     }
+
+
+# ---------- upload manual ----------
+ACEITA = ".txt,.pdf"
+INSTRUCOES = ("TXT do extrato (obrigatório, tem os valores) e, se possível, o PDF do mesmo extrato "
+              "(traz o nome dos beneficiários).")
+
+
+def preparar_upload(arquivos: list[tuple[str, bytes]], pasta: Path) -> None:
+    grupos = separar(arquivos, "txt", "pdf")
+    if len(grupos["txt"]) != 1 or len(grupos["pdf"]) > 1:
+        raise ArquivoInvalido("Envie um TXT do extrato da Up Health e, opcionalmente, o PDF do mesmo extrato.")
+    texto = grupos["txt"][0][1]
+    (pasta / "extrato.txt").write_bytes(texto)
+    if grupos["pdf"]:
+        (pasta / "extrato.pdf").write_bytes(grupos["pdf"][0][1])
+    cabecalho = texto.decode("latin-1")
+    numero = re.search(r"Número Extrato:#(\d+)", cabecalho)
+    periodo = re.search(r"Período de Apuração:#(\d{2}/\d{2}/\d{4}) até (\d{2}/\d{2}/\d{4})", cabecalho)
+    if not periodo:
+        raise ArquivoInvalido("O TXT não parece um extrato da Up Health (sem \"Período de Apuração\").")
+    (pasta / "info.txt").write_text(
+        f"Extrato: {numero.group(1) if numero else '?'}\nPeríodo Inicial: {periodo.group(1)}\n"
+        f"Período Final: {periodo.group(2)}\nSituação: Upload manual\n")
 
 
 def _chave(fatura, parcela, base, comissao):

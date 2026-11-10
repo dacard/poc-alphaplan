@@ -11,7 +11,9 @@ import re
 from datetime import date
 from pathlib import Path
 
-from .comum import numero_br
+from collections import Counter
+
+from .comum import ArquivoInvalido, numero_br, separar
 
 FONTE = "quali"
 PERCENTUAL = re.compile(r"Comissão\(%\):\s*([\d.,]+)")
@@ -36,6 +38,24 @@ def metadados(pasta: Path) -> dict:
         "data_referencia": date(int(ano), int(mes), 1),
         "status": info.get("Situação"),
     }
+
+
+# ---------- upload manual ----------
+ACEITA = ".csv"
+INSTRUCOES = "CSV do Relatório de Comissões (botão \"Exportar (CSV)\"), de preferência um mês por arquivo."
+
+
+def preparar_upload(arquivos: list[tuple[str, bytes]], pasta: Path) -> None:
+    grupos = separar(arquivos, "csv")
+    if len(grupos["csv"]) != 1:
+        raise ArquivoInvalido("Envie um único CSV do relatório da Quali.")
+    conteudo = grupos["csv"][0][1]
+    (pasta / "comissoes.csv").write_bytes(conteudo)
+    linhas = list(csv.DictReader(conteudo.decode("utf-8-sig").splitlines(), delimiter=";"))
+    if not linhas or "Mês" not in linhas[0]:
+        raise ArquivoInvalido("O CSV não parece o relatório de comissões da Quali (sem a coluna \"Mês\").")
+    ano, mes = Counter(l["Mês"].split("-")[0] for l in linhas).most_common(1)[0][0].split("/")
+    (pasta / "info.txt").write_text(f"Competência: {ano}-{mes}\nSituação: Upload manual\n")
 
 
 def ler(arquivo: Path) -> list[dict]:
