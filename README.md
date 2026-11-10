@@ -47,6 +47,16 @@ cd backend && ../.venv/bin/python -m app.seed && cd ..
 ./iniciar.sh            # http://localhost:5180
 ```
 
+## Dashboard (tela inicial)
+
+Indicadores (clientes, operadoras, administradoras, contratos, colaboradores ativos, relatórios e
+pagamentos processados, receita total), receita por competência × esperado pelo cadastro, vidas com
+comissão e projeção dos próximos meses, tudo filtrável por cliente.
+
+**Projeção** = tendência linear das vidas com comissão × tendência da receita por vida (amortecida),
+calculadas nos últimos 6 meses completos. O mês em andamento entra como projeção. A faixa sombreada
+é ± o desvio dos resíduos da receita por vida.
+
 ## Regras da conciliação
 
 - **Competência**: Samp = mês de vencimento da mensalidade; Easyplan = mês da previsão de pagamento;

@@ -165,6 +165,50 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(31,95,209,.2
 .cartao.fonte > div { display: flex; flex-direction: column; gap: 2px; }
 .cartao.fonte b { font-size: 16px; text-transform: capitalize; }
 
+/* ---------- dashboard ---------- */
+.painel-indicadores { display: grid; grid-template-columns: minmax(260px, 1fr) 3fr; gap: 12px; margin-bottom: 16px; }
+.cartao.heroi { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.cartao.heroi > span { color: var(--mudo); font-size: 13px; }
+.cartao.heroi b { font-size: 34px; font-weight: 600; letter-spacing: -0.5px; }
+.grade-indicadores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.indicador-mini { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; }
+.indicador-mini > span { color: var(--mudo); font-size: 12px; }
+.indicador-mini b { font-size: 22px; font-weight: 600; color: var(--texto); }
+.indicador-mini a:hover { text-decoration: none; }
+.indicador-mini a:hover b { color: var(--primaria); }
+.grafico-cartao { margin-bottom: 16px; }
+.grafico-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.grafico-topo p { margin: 4px 0 0; }
+.grafico { position: relative; width: 100%; }
+.grafico svg { display: block; }
+.grafico .grade { stroke: #eef0f3; stroke-width: 1; }
+.grafico .eixo { fill: var(--mudo); font-size: 11px; font-variant-numeric: tabular-nums; }
+.grafico .mira { stroke: #9aa3b2; stroke-width: 1; }
+.grafico .fundo-projecao { fill: #f4f7fc; }
+.legenda { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--mudo); margin: 4px 0 6px; }
+.legenda span { display: inline-flex; align-items: center; gap: 6px; }
+.tooltip { position: absolute; pointer-events: none; background: #fff; border: 1px solid var(--borda); border-radius: 8px; box-shadow: 0 6px 20px rgba(15,22,36,.12); padding: 8px 10px; min-width: 180px; font-size: 12px; }
+.tooltip-titulo { color: var(--mudo); margin-bottom: 4px; }
+.tooltip-linha { display: flex; align-items: center; gap: 6px; padding: 1px 0; }
+.tooltip-linha b { font-variant-numeric: tabular-nums; color: var(--texto); }
+.tooltip-linha span { color: var(--mudo); }
+.tooltip-nota { color: var(--mudo); font-size: 11px; margin-top: 2px; }
+.resumo-projecao { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; border-top: 1px solid var(--borda); margin-top: 12px; padding-top: 12px; }
+.resumo-projecao > div { display: flex; flex-direction: column; gap: 3px; }
+.resumo-projecao span { color: var(--mudo); font-size: 12px; }
+.resumo-projecao b { font-size: 16px; font-weight: 600; }
+.tabela-rolagem { max-height: 360px; overflow-y: auto; border: 1px solid var(--borda); border-radius: 8px; }
+.linha-projecao td { background: #f7f9fd; }
+.recarregando { opacity: .55; transition: opacity .15s; }
+.filtro-clientes { position: relative; }
+.seletor { display: inline-flex; gap: 6px; align-items: center; }
+.seta-baixo { color: var(--mudo); font-size: 11px; }
+.filtro-painel { position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 360px; background: #fff; border: 1px solid var(--borda); border-radius: 10px; box-shadow: 0 12px 32px rgba(15,22,36,.15); padding: 10px; }
+.filtro-painel .busca { max-width: none; width: 100%; }
+.filtro-acoes { display: flex; gap: 8px; margin: 6px 0; }
+.filtro-lista { max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.filtro-lista .checkbox { padding: 4px 2px; font-size: 13px; }
+
 /* ---------- avisos ---------- */
 .aviso { background: #eef3fb; border: 1px solid #d3def3; color: #2a4473; border-radius: var(--raio); padding: 12px 14px; margin: 10px 0; }
 .aviso.erro { background: var(--negativo-fundo); border-color: #f5c6c2; color: var(--negativo); }
@@ -195,4 +239,6 @@ input:focus, select:focus, textarea:focus { outline: 2px solid rgba(31,95,209,.2
   .conteudo { padding: 20px 16px; }
   .mes-topo { grid-template-columns: 1fr 1fr; }
   .grade-2, .faixas { grid-template-columns: 1fr; }
+  .painel-indicadores { grid-template-columns: 1fr; }
+  .grade-indicadores { grid-template-columns: repeat(2, 1fr); }
 }

@@ -12,6 +12,7 @@ from sqlmodel import Session, SQLModel, func, select
 
 from . import conciliacao as conc
 from .db import RAIZ, criar_tabelas, get_session
+from .dashboard import dados_dashboard
 from .importador import importar
 from .models import (Administradora, Cliente, Colaborador, Contrato, LinhaRelatorio, Operadora,
                      Produto, Relatorio)
@@ -86,6 +87,15 @@ crud("produtos", Produto, [(Contrato, "produto_id")])
 crud("clientes", Cliente, [(Contrato, "cliente_id")])
 crud("contratos", Contrato, [(Colaborador, "contrato_id")])
 crud("colaboradores", Colaborador)
+
+
+# ---------- Dashboard ----------
+
+@app.get("/api/dashboard", tags=["telas"])
+def dashboard(clientes: str | None = None, session: Session = SessionDep):
+    """clientes: ids separados por vírgula; ausente = todos."""
+    ids = None if clientes is None else [int(x) for x in clientes.split(",") if x.strip()]
+    return dados_dashboard(session, ids)
 
 
 # ---------- Visões enriquecidas para as telas ----------

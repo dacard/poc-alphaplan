@@ -4,11 +4,13 @@ import { BrowserRouter, Navigate, NavLink, Route, Routes } from "react-router-do
 import Cliente from "./pages/Cliente";
 import Clientes from "./pages/Clientes";
 import Contrato from "./pages/Contrato";
+import Dashboard from "./pages/Dashboard";
 import { Empresas, Produtos } from "./pages/Cadastros";
 import Relatorios from "./pages/Relatorios";
 import "./styles.css";
 
 const MENU = [
+  { para: "/dashboard", rotulo: "Dashboard" },
   { para: "/clientes", rotulo: "Clientes" },
   { para: "/operadoras", rotulo: "Operadoras" },
   { para: "/administradoras", rotulo: "Administradoras" },
@@ -27,7 +29,8 @@ function App() {
       </aside>
       <main className="conteudo">
         <Routes>
-          <Route path="/" element={<Navigate to="/clientes" replace />} />
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/clientes" element={<Clientes />} />
           <Route path="/clientes/:id" element={<Cliente />} />
           <Route path="/contratos/:id" element={<Contrato />} />
